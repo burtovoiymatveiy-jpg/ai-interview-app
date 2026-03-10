@@ -1,24 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Interview Coach</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #f0f2f5; }
-        button { background: #0088cc; color: white; border: none; padding: 15px 30px; border-radius: 12px; font-size: 18px; cursor: pointer; }
+        /* Общие стили в стиле Telegram */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color, #f4f7f9);
+            color: var(--tg-theme-text-color, #222);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Карточка приложения */
+        .app-card {
+            background-color: var(--tg-theme-secondary-bg-color, #ffffff);
+            width: 90%;
+            max-width: 350px;
+            padding: 40px 20px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        /* Стильный CSS-робот вместо картинки */
+        .robot-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #6dd5ed, #2193b0);
+            border-radius: 50%;
+            margin: 0 auto 25px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(33, 147, 176, 0.3);
+        }
+        .robot-icon::before, .robot-icon::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+        }
+        /* Глаза */
+        .robot-icon::before {
+            width: 12px; height: 12px;
+            top: 30px; left: 22px;
+            box-shadow: 24px 0 0 white;
+        }
+        /* Улыбка */
+        .robot-icon::after {
+            width: 30px; height: 15px;
+            border-bottom: 4px solid white;
+            border-radius: 0 0 30px 30px;
+            top: 45px; left: 25px;
+            background: transparent;
+        }
+
+        /* Заголовки */
+        h2 {
+            margin: 0 0 10px;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--tg-theme-text-color, #222);
+        }
+        p {
+            margin: 0 0 35px;
+            font-size: 16px;
+            color: var(--tg-theme-hint-color, #777);
+            line-height: 1.4;
+        }
+
+        /* Главная кнопка */
+        .start-btn {
+            background: linear-gradient(135deg, #0088cc, #0077b5);
+            color: white;
+            border: none;
+            padding: 16px 35px;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 5px 20px rgba(0, 136, 204, 0.3);
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent; /* Убирает синий блик на Айфоне */
+        }
+
+        /* Эффекты при нажатии */
+        .start-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 10px rgba(0, 136, 204, 0.2);
+        }
+
+        /* Анимация появления карточки */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .app-card {
+            animation: fadeIn 0.5s ease-out;
+        }
     </style>
 </head>
 <body>
-    <h2>IT-Собеседование: Тренажер</h2>
-    <p>Нажми кнопку ниже, чтобы начать сессию с ИИ</p>
-    <button onclick="start()">Начать интервью</button>
+    <div class="app-card">
+        <div class="robot-icon"></div>
+        
+        <h2>IT-Интервью</h2>
+        <p>Ваш персональный AI-тренер готов начать проверку знаний.</p>
+        
+        <button class="start-btn" onclick="sendData()">Начать тренировку</button>
+    </div>
 
     <script>
-        let tg = window.Telegram.WebApp;
-        tg.expand();
-        function start() {
-            tg.sendData("start_ai_interview");
-            tg.close();
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        
+        // Настройка цветов темы Telegram
+        tg.ready();
+        tg.expand(); // Развернуть на весь экран
+
+        // Функция отправки данных боту
+        function sendData() {
+            // Вибрация при нажатии (Haptic Feedback)
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('medium');
+            }
+            
+            // Отправляем сигнал бэкенду
+            tg.sendData("start_interview");
+            
+            // Закрываем окно через полсекунды (чтобы пользователь увидел анимацию кнопки)
+            setTimeout(() => {
+                tg.close();
+            }, 100);
         }
     </script>
 </body>
