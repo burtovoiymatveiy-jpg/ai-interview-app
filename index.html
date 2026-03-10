@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #f0f2f5; }
+        button { background: #0088cc; color: white; border: none; padding: 15px 30px; border-radius: 12px; font-size: 18px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>IT-Собеседование: Тренажер</h2>
+    <p>Нажми кнопку ниже, чтобы начать сессию с ИИ</p>
+    <button onclick="start()">Начать интервью</button>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+        function start() {
+            tg.sendData("start_ai_interview");
+            tg.close();
+        }
+    </script>
+</body>
+</html>
