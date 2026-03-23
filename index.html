@@ -6,121 +6,85 @@
     <title>Трекер АмГУ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body {
-            font-family: sans-serif;
-            background-color: var(--tg-theme-bg-color, #181818);
-            color: var(--tg-theme-text-color, #ffffff);
-            padding: 15px;
-            margin: 0;
-        }
-        select, input, button {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            border: none;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-        button {
-            background-color: var(--tg-theme-button-color, #2481cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            font-weight: bold;
-        }
-        .task-card {
-            background-color: var(--tg-theme-secondary-bg-color, #2c2c2c);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }
-        .task-date { color: #ff5e5e; font-size: 14px; }
+        body { font-family: sans-serif; background-color: var(--tg-theme-bg-color, #181818); color: var(--tg-theme-text-color, #ffffff); padding: 15px; }
+        input, select, button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: none; font-size: 16px; }
+        button { background-color: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #ffffff); font-weight: bold; }
+        .card { background-color: var(--tg-theme-secondary-bg-color, #2c2c2c); padding: 15px; border-radius: 10px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <h2>Добавить дедлайн</h2>
-    <select id="subject-select">
-        <option value="">Загрузка предметов...</option>
-    </select>
-    <input type="text" id="task-name" placeholder="Название (например, Лаба №1)">
-    <input type="date" id="task-date">
-    <button onclick="addTask()">Сохранить задачу</button>
+    <div id="group-section" class="card">
+        <h3>Укажите группу</h3>
+        <input type="text" id="group-input" placeholder="Например: 5104-об">
+        <button onclick="updateGroup()">Обновить предметы</button>
+    </div>
 
-    <h2>Мои задачи</h2>
+    <div id="main-app" class="card">
+        <h3>Добавить дедлайн</h3>
+        <select id="subject-select">
+            <option>Сначала введите группу</option>
+        </select>
+        <input type="text" id="task-name" placeholder="Название работы">
+        <input type="date" id="task-date">
+        <button onclick="addTask()">Сохранить задачу</button>
+    </div>
+
+    <h3>Мои задачи</h3>
     <div id="tasks-list"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        let tasks = [];
+        // Функция обновления группы
+        async function updateGroup() {
+            const group = document.getElementById('group-input').value;
+            if (!group) return tg.showAlert("Введите номер группы!");
+            
+            tg.showConfirm(`Обновить список предметов для ${group}?`, (ok) => {
+                if (ok) {
+                    // Здесь мы имитируем загрузку. В реальности можно дернуть API Гитхаба
+                    // Но для начала просто сохраним группу локально
+                    localStorage.setItem('user_group', group);
+                    loadSubjects();
+                }
+            });
+        }
 
-        // 1. Загрузка расписания с GitHub Pages
         async function loadSubjects() {
+            const group = localStorage.getItem('user_group');
+            if (!group) return;
+
             try {
-                // Добавляем ./ перед путем для надежности
                 const response = await fetch('./data/schedule.json');
-                if (!response.ok) throw new Error('Файл не найден');
                 const data = await response.json();
                 const select = document.getElementById('subject-select');
                 select.innerHTML = '';
-                data.subjects.forEach(subject => {
-                    const option = document.createElement('option');
-                    option.value = subject;
-                    option.innerText = subject;
-                    select.appendChild(option);
+                data.subjects.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s; opt.innerText = s;
+                    select.appendChild(opt);
                 });
-            } catch (error) {
-                console.error(error);
-                document.getElementById('subject-select').innerHTML = '<option>Запустите Action на GitHub</option>';
+            } catch (e) {
+                // Если файла нет, дадим вводить предмет вручную
+                const select = document.getElementById('subject-select');
+                select.innerHTML = '<option value="custom">Введите предмет вручную ниже</option>';
             }
         }
 
-        function loadTasks() {
-            tg.CloudStorage.getItem('amgu_tasks', (err, value) => {
-                if (!err && value) {
-                    tasks = JSON.parse(value);
-                    renderTasks();
-                }
-            });
-        }
-
-        // 3. Сохранение и рендер
         function addTask() {
-            const subject = document.getElementById('subject-select').value;
+            const sub = document.getElementById('subject-select').value;
             const name = document.getElementById('task-name').value;
             const date = document.getElementById('task-date').value;
+            
+            if(!name || !date) return tg.showAlert("Заполните поля!");
 
-            if (!name || !date) {
-                tg.showAlert("Заполните все поля!");
-                return;
-            }
-
-            tasks.push({ subject, name, date });
-            tg.CloudStorage.setItem('amgu_tasks', JSON.stringify(tasks), (err) => {
-                if (!err) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                    renderTasks();
-                }
-            });
-        }
-
-        function renderTasks() {
             const list = document.getElementById('tasks-list');
-            list.innerHTML = '';
-            tasks.forEach(task => {
-                list.innerHTML += `
-                    <div class="task-card">
-                        <strong>${task.subject}</strong><br>
-                        ${task.name}<br>
-                        <span class="task-date">Сдать до: ${task.date}</span>
-                    </div>
-                `;
-            });
+            list.innerHTML += `<div class="card"><b>${sub}</b><br>${name}<br><small>${date}</small></div>`;
+            tg.HapticFeedback.impactOccurred('medium');
         }
 
-        // Запуск
         loadSubjects();
-        loadTasks();
     </script>
 </body>
 </html>
