@@ -14,39 +14,47 @@
             border: 1px solid var(--tg-theme-hint-color, #444); 
             background-color: var(--tg-theme-secondary-bg-color, #333);
             color: var(--tg-theme-text-color, #fff); font-size: 16px; 
-            -webkit-appearance: none; display: block;
+            -webkit-appearance: none; display: block; outline: none;
+            text-align: left; /* Жесткое выравнивание влево */
         }
+        input::placeholder { color: var(--tg-theme-hint-color, #aaa); }
 
         .date-wrapper { position: relative; width: 100%; margin-bottom: 12px; }
-        .date-wrapper input[type="date"] { color: transparent; min-height: 48px; margin-bottom: 0; }
+        .date-wrapper input[type="date"] { color: transparent; min-height: 48px; margin-bottom: 0; text-align: left; }
         .date-wrapper input.has-value { color: #fff; }
-        .date-placeholder { position: absolute; left: 15px; top: 14px; color: #aaa; pointer-events: none; }
+        .date-placeholder { 
+            position: absolute; left: 15px; top: 14px; 
+            color: var(--tg-theme-hint-color, #aaa); 
+            pointer-events: none; text-align: left; 
+        }
 
-        .save-btn { background-color: var(--tg-theme-button-color, #2481cc); font-weight: bold; border: none; }
+        .save-btn { background-color: var(--tg-theme-button-color, #2481cc); font-weight: bold; border: none; color: #fff; text-align: center; }
         
         .task-card { background: var(--tg-theme-secondary-bg-color, #2c2c2c); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+        .task-date { color: #ff5e5e; font-size: 14px; display: block; margin-top: 5px; }
         
-        /* Кнопки действий */
-        .controls { display: flex; gap: 8px; margin-top: 10px; }
-        .study-btn { background-color: #00b894; color: white; border: none; flex: 2; padding: 10px; border-radius: 8px; font-weight: bold; }
-        .del-btn { background-color: #d63031; color: white; border: none; flex: 1; padding: 10px; border-radius: 8px; }
+        .controls { display: flex; gap: 8px; margin-top: 12px; }
+        .study-btn { background-color: #00b894; color: white; border: none; flex: 2; padding: 10px; font-weight: bold; text-align: center; }
+        .del-btn { background-color: #d63031; color: white; border: none; flex: 1; padding: 10px; text-align: center; }
 
-        /* Окно ИИ-конспекта */
-        .ai-summary-box { 
-            display: none; background: #111; padding: 12px; border-radius: 8px; 
-            margin-top: 10px; border-left: 4px solid #00b894; font-size: 14px; line-height: 1.5;
+        .ai-box { 
+            display: none; background: #1a1a1a; padding: 12px; border-radius: 8px; 
+            margin-top: 10px; border-left: 4px solid #00b894; font-size: 14px; line-height: 1.5; 
         }
-        .ai-section-title { color: #00b894; font-weight: bold; margin-top: 8px; display: block; text-transform: uppercase; font-size: 11px; }
+        .ai-title { color: #00b894; font-weight: bold; display: block; margin-top: 8px; font-size: 11px; text-transform: uppercase; }
     </style>
 </head>
 <body>
+
     <h2>Новый дедлайн</h2>
-    <input type="text" id="subject-input" placeholder="Предмет (например, БД)">
-    <input type="text" id="task-name" placeholder="Тема (например, Нормальные формы)">
+    <input type="text" id="sub-input" placeholder="Предмет">
+    <input type="text" id="task-input" placeholder="Тема (например, Нормальные формы)">
+    
     <div class="date-wrapper">
         <input type="date" id="task-date" onchange="this.classList.toggle('has-value', !!this.value); document.getElementById('date-placeholder').style.display = this.value ? 'none' : 'block';">
         <div class="date-placeholder" id="date-placeholder">Дата</div>
     </div>
+
     <button class="save-btn" onclick="addTask()">Добавить в список</button>
 
     <h2>Мои задачи</h2>
@@ -57,63 +65,72 @@
         tg.expand();
         let tasks = [];
 
-        tg.CloudStorage.getItem('amgu_v3', (err, val) => { if(!err && val) { tasks = JSON.parse(val); renderTasks(); } });
+        tg.CloudStorage.getItem('amgu_v4', (err, val) => {
+            if(!err && val) { tasks = JSON.parse(val); renderTasks(); }
+        });
 
-        async function getSummary(id, subject, theme) {
-            const box = document.getElementById(`summary-${id}`);
+        async function askAI(id, sub, theme) {
+            const box = document.getElementById(`ai-${id}`);
             box.style.display = 'block';
             box.innerHTML = "<i>ИИ готовит конспект...</i>";
-            
-            const prompt = `Ты помощник студента. Составь краткий учебный конспект. 
-            Предмет: ${subject}. Тема: ${theme}. 
-            Структура: 
-            1. ТЕЗИСЫ (суть темы за 30 секунд).
-            2. ТЕРМИНЫ (важные определения).
-            3. ВОПРОСЫ (3 вопроса от препода и ответы).
-            4. ЛАЙФХАК (что сказать, если не учил). 
-            Пиши кратко и по делу.`;
+            tg.HapticFeedback.impactOccurred('medium');
 
             try {
-                const r = await fetch('https://text.pollinations.ai/openai', {
+                // Изменен эндпоинт для стабильности
+                const r = await fetch('https://text.pollinations.ai/', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({messages: [{role: 'user', content: prompt}]})
+                    body: JSON.stringify({
+                        messages: [{role: 'user', content: `Кратко разбери тему "${theme}" по предмету "${sub}" для студента. Структура: ТЕЗИСЫ, ТЕРМИНЫ, ВОПРОСЫ, ЛАЙФХАК.`}],
+                        model: 'openai'
+                    })
                 });
-                const text = await r.text();
                 
-                // Форматируем текст для красоты
-                box.innerHTML = text.replace(/(ТЕЗИСЫ|ТЕРМИНЫ|ВОПРОСЫ|ЛАЙФХАК):/g, '<span class="ai-section-title">$1</span>');
-                tg.HapticFeedback.impactOccurred('medium');
-            } catch (e) { box.innerText = "Ошибка связи с ИИ."; }
+                let text = await r.text();
+                
+                // Проверка на системные ошибки в ответе
+                if (text.includes('"error"') || text.includes('status":500')) {
+                    box.innerHTML = "<span style='color:#ff4d4d'>У ИИ перегрузка сервера. Попробуй через минуту.</span>";
+                } else {
+                    box.innerHTML = text.replace(/(ТЕЗИСЫ|ТЕРМИНЫ|ВОПРОСЫ|ЛАЙФХАК):/g, '<span class="ai-title">$1</span>');
+                }
+            } catch (e) { box.innerText = "Ошибка сети."; }
         }
 
         function addTask() {
-            const s = document.getElementById('subject-input').value;
-            const t = document.getElementById('task-name').value;
-            const d = document.getElementById('task-date').value;
-            if(!s || !t || !d) return tg.showAlert("Заполни все поля!");
+            const sub = document.getElementById('sub-input').value;
+            const task = document.getElementById('task-input').value;
+            const date = document.getElementById('task-date').value;
 
-            tasks.push({id: Date.now(), subject: s, theme: t, date: new Date(d).toLocaleDateString('ru-RU')});
-            tg.CloudStorage.setItem('amgu_v3', JSON.stringify(tasks));
+            if(!sub || !task || !date) return tg.showAlert("Заполни все поля!");
+
+            tasks.push({id: Date.now(), sub, task, date: new Date(date).toLocaleDateString('ru-RU')});
+            save();
             renderTasks();
             tg.HapticFeedback.notificationOccurred('success');
+            
+            document.getElementById('sub-input').value = '';
+            document.getElementById('task-input').value = '';
+            document.getElementById('task-date').value = '';
         }
 
         function deleteTask(id) {
-            tasks = tasks.filter(x => x.id !== id);
-            tg.CloudStorage.setItem('amgu_v3', JSON.stringify(tasks));
-            renderTasks();
+            tg.showConfirm('Удалить?', (ok) => {
+                if(ok) { tasks = tasks.filter(t => t.id !== id); save(); renderTasks(); }
+            });
         }
+
+        function save() { tg.CloudStorage.setItem('amgu_v4', JSON.stringify(tasks)); }
 
         function renderTasks() {
             const list = document.getElementById('tasks-list');
             list.innerHTML = tasks.map(t => `
                 <div class="task-card">
-                    <strong>${t.subject}</strong>: ${t.theme}
-                    <span class="date-placeholder" style="position:static; display:block; margin-top:5px;">До: ${t.date}</span>
-                    <div id="summary-${t.id}" class="ai-summary-box"></div>
+                    <strong>${t.sub}</strong>: ${t.task}
+                    <span class="task-date">До: ${t.date}</span>
+                    <div id="ai-${t.id}" class="ai-box"></div>
                     <div class="controls">
-                        <button class="study-btn" onclick="getSummary(${t.id}, '${t.subject}', '${t.theme}')">📚 Подготовиться</button>
+                        <button class="study-btn" onclick="askAI(${t.id}, '${t.sub}', '${t.task}')">📚 Подготовиться</button>
                         <button class="del-btn" onclick="deleteTask(${t.id})">🗑</button>
                     </div>
                 </div>
