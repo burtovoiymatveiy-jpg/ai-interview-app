@@ -3,53 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AmGU Deadline Tracker</title>
+    <title>Трекер АмГУ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
             font-family: sans-serif;
-            background-color: var(--tg-theme-bg-color, #fff);
-            color: var(--tg-theme-text-color, #000);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
+            background-color: var(--tg-theme-bg-color, #181818);
+            color: var(--tg-theme-text-color, #ffffff);
+            padding: 15px;
+            margin: 0;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: none;
+            box-sizing: border-box;
+            font-size: 16px;
         }
         button {
             background-color: var(--tg-theme-button-color, #2481cc);
-            color: var(--tg-theme-button-text-color, #fff);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 20px;
+            color: var(--tg-theme-button-text-color, #ffffff);
+            font-weight: bold;
         }
+        .task-card {
+            background-color: var(--tg-theme-secondary-bg-color, #2c2c2c);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .task-date { color: #ff5e5e; font-size: 14px; }
     </style>
 </head>
 <body>
-    <h1>Трекер дедлайнов АмГУ</h1>
-    <p>Привет, <span id="user-name">студент</span>!</p>
-    <div id="setup">
-        <input type="text" id="group-id" placeholder="Введите номер группы">
-        <button onclick="saveGroup()">Загрузить расписание</button>
-    </div>
+    <h2>Добавить дедлайн</h2>
+    <select id="subject-select">
+        <option value="">Загрузка предметов...</option>
+    </select>
+    <input type="text" id="task-name" placeholder="Название (например, Лаба №1)">
+    <input type="date" id="task-date">
+    <button onclick="addTask()">Сохранить задачу</button>
+
+    <h2>Мои задачи</h2>
+    <div id="tasks-list"></div>
 
     <script>
-        // Инициализация Telegram WebApp
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Развернуть на весь экран
+        tg.expand();
 
-        if (tg.initDataUnsafe.user) {
-            document.getElementById('user-name').innerText = tg.initDataUnsafe.user.first_name;
-        }
+        let tasks = [];
 
-        function saveGroup() {
-            const group = document.getElementById('group-id').value;
-            if (group) {
-                alert('Группа ' + group + ' сохранена. Скоро подтянем расписание!');
-                // Здесь будет логика вызова твоего парсера через GitHub Actions
+        // 1. Загрузка расписания с GitHub Pages
+        async function loadSubjects() {
+            try {
+                const response = await fetch('data/schedule.json');
+                const data = await response.json();
+                const select = document.getElementById('subject-select');
+                select.innerHTML = '';
+                data.subjects.forEach(subject => {
+                    const option = document.createElement('option');
+                    option.value = subject;
+                    option.innerText = subject;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                document.getElementById('subject-select').innerHTML = '<option>Ошибка загрузки</option>';
             }
         }
+
+        // 2. Загрузка личных задач из Telegram Cloud
+        function loadTasks() {
+            tg.CloudStorage.getItem('amgu_tasks', (err, value) => {
+                if (!err && value) {
+                    tasks = JSON.parse(value);
+                    renderTasks();
+                }
+            });
+        }
+
+        // 3. Сохранение и рендер
+        function addTask() {
+            const subject = document.getElementById('subject-select').value;
+            const name = document.getElementById('task-name').value;
+            const date = document.getElementById('task-date').value;
+
+            if (!name || !date) {
+                tg.showAlert("Заполните все поля!");
+                return;
+            }
+
+            tasks.push({ subject, name, date });
+            tg.CloudStorage.setItem('amgu_tasks', JSON.stringify(tasks), (err) => {
+                if (!err) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    renderTasks();
+                }
+            });
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('tasks-list');
+            list.innerHTML = '';
+            tasks.forEach(task => {
+                list.innerHTML += `
+                    <div class="task-card">
+                        <strong>${task.subject}</strong><br>
+                        ${task.name}<br>
+                        <span class="task-date">Сдать до: ${task.date}</span>
+                    </div>
+                `;
+            });
+        }
+
+        // Запуск
+        loadSubjects();
+        loadTasks();
     </script>
 </body>
 </html>
