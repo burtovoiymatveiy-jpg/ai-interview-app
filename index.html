@@ -6,85 +6,103 @@
     <title>Трекер АмГУ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: var(--tg-theme-bg-color, #181818); color: var(--tg-theme-text-color, #ffffff); padding: 15px; }
-        input, select, button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: none; font-size: 16px; }
-        button { background-color: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #ffffff); font-weight: bold; }
-        .card { background-color: var(--tg-theme-secondary-bg-color, #2c2c2c); padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+        body { font-family: sans-serif; background-color: var(--tg-theme-bg-color, #181818); color: var(--tg-theme-text-color, #ffffff); padding: 15px; margin: 0; }
+        .card { background-color: var(--tg-theme-secondary-bg-color, #2c2c2c); padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        /* Стили для полей ввода и кнопок */
+        input, select, .date-input-container { 
+            width: 100%; 
+            padding: 14px; 
+            margin-bottom: 12px; 
+            border-radius: 10px; 
+            border: 1px solid #444; 
+            background-color: #333;
+            color: #fff;
+            font-size: 16px; 
+            box-sizing: border-box;
+            display: block;
+        }
+
+        /* Особый стиль для поля даты, чтобы было "Выберите дату" */
+        .date-input-container { position: relative; height: 50px; cursor: pointer; }
+        .date-input-container input { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            opacity: 0; cursor: pointer; z-index: 2; 
+        }
+        .date-placeholder { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; align-items: center; padding-left: 14px; color: #aaa; z-index: 1; 
+        }
+
+        button { 
+            width: 100%; padding: 14px; border-radius: 10px; border: none; 
+            background-color: var(--tg-theme-button-color, #2481cc); 
+            color: var(--tg-theme-button-text-color, #ffffff); 
+            font-size: 16px; font-weight: bold; cursor: pointer;
+        }
+        
+        h2, h3 { margin-top: 0; color: var(--tg-theme-button-color, #2481cc); }
+        .task-item { border-left: 4px solid #2481cc; padding-left: 10px; margin-bottom: 10px; background: #252525; padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <div id="group-section" class="card">
-        <h3>Укажите группу</h3>
-        <input type="text" id="group-input" placeholder="Например: 5104-об">
-        <button onclick="updateGroup()">Обновить предметы</button>
-    </div>
 
-    <div id="main-app" class="card">
-        <h3>Добавить дедлайн</h3>
-        <select id="subject-select">
-            <option>Сначала введите группу</option>
-        </select>
-        <input type="text" id="task-name" placeholder="Название работы">
-        <input type="date" id="task-date">
+    <div class="card">
+        <h3>Укажите данные</h3>
+        <input type="text" id="group-input" placeholder="Ваша группа (например: 5104-об)">
+        
+        <input type="text" id="subject-input" placeholder="Введите название предмета">
+        
+        <input type="text" id="task-name" placeholder="Что нужно сделать? (Лаба №1)">
+
+        <div class="date-input-container" onclick="document.getElementById('task-date').showPicker()">
+            <div class="date-placeholder" id="date-text">Выберите дату</div>
+            <input type="date" id="task-date" onchange="updateDateText(this.value)">
+        </div>
+
         <button onclick="addTask()">Сохранить задачу</button>
     </div>
 
-    <h3>Мои задачи</h3>
+    <h3>Мои дедлайны</h3>
     <div id="tasks-list"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Функция обновления группы
-        async function updateGroup() {
-            const group = document.getElementById('group-input').value;
-            if (!group) return tg.showAlert("Введите номер группы!");
-            
-            tg.showConfirm(`Обновить список предметов для ${group}?`, (ok) => {
-                if (ok) {
-                    // Здесь мы имитируем загрузку. В реальности можно дернуть API Гитхаба
-                    // Но для начала просто сохраним группу локально
-                    localStorage.setItem('user_group', group);
-                    loadSubjects();
-                }
-            });
-        }
-
-        async function loadSubjects() {
-            const group = localStorage.getItem('user_group');
-            if (!group) return;
-
-            try {
-                const response = await fetch('./data/schedule.json');
-                const data = await response.json();
-                const select = document.getElementById('subject-select');
-                select.innerHTML = '';
-                data.subjects.forEach(s => {
-                    const opt = document.createElement('option');
-                    opt.value = s; opt.innerText = s;
-                    select.appendChild(opt);
-                });
-            } catch (e) {
-                // Если файла нет, дадим вводить предмет вручную
-                const select = document.getElementById('subject-select');
-                select.innerHTML = '<option value="custom">Введите предмет вручную ниже</option>';
+        function updateDateText(val) {
+            if (val) {
+                const date = new Date(val);
+                document.getElementById('date-text').innerText = date.toLocaleDateString('ru-RU');
+                document.getElementById('date-text').style.color = "#fff";
             }
         }
 
         function addTask() {
-            const sub = document.getElementById('subject-select').value;
+            const group = document.getElementById('group-input').value;
+            const subject = document.getElementById('subject-input').value;
             const name = document.getElementById('task-name').value;
             const date = document.getElementById('task-date').value;
-            
-            if(!name || !date) return tg.showAlert("Заполните поля!");
+
+            if (!subject || !name || !date) {
+                tg.showAlert("Пожалуйста, заполните предмет, название и дату!");
+                return;
+            }
 
             const list = document.getElementById('tasks-list');
-            list.innerHTML += `<div class="card"><b>${sub}</b><br>${name}<br><small>${date}</small></div>`;
-            tg.HapticFeedback.impactOccurred('medium');
+            const taskHtml = `
+                <div class="card task-item">
+                    <strong>${subject}</strong> (гр. ${group})<br>
+                    ${name}<br>
+                    <small style="color: #ff5e5e">Сдать до: ${date}</small>
+                </div>
+            `;
+            list.insertAdjacentHTML('afterbegin', taskHtml);
+            
+            // Очистка полей
+            document.getElementById('task-name').value = '';
+            tg.HapticFeedback.notificationOccurred('success');
         }
-
-        loadSubjects();
     </script>
 </body>
 </html>
