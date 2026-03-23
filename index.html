@@ -57,7 +57,9 @@
         // 1. Загрузка расписания с GitHub Pages
         async function loadSubjects() {
             try {
-                const response = await fetch('data/schedule.json');
+                // Добавляем ./ перед путем для надежности
+                const response = await fetch('./data/schedule.json');
+                if (!response.ok) throw new Error('Файл не найден');
                 const data = await response.json();
                 const select = document.getElementById('subject-select');
                 select.innerHTML = '';
@@ -68,11 +70,11 @@
                     select.appendChild(option);
                 });
             } catch (error) {
-                document.getElementById('subject-select').innerHTML = '<option>Ошибка загрузки</option>';
+                console.error(error);
+                document.getElementById('subject-select').innerHTML = '<option>Запустите Action на GitHub</option>';
             }
         }
 
-        // 2. Загрузка личных задач из Telegram Cloud
         function loadTasks() {
             tg.CloudStorage.getItem('amgu_tasks', (err, value) => {
                 if (!err && value) {
