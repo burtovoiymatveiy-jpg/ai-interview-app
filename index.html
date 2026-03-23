@@ -2,151 +2,161 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Трекер АмГУ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, sans-serif; background-color: #000; color: #fff; padding: 15px; margin: 0; }
+        /* Глобальный сброс для ровных полей */
+        * { box-sizing: border-box; }
         
-        h2 { font-size: 22px; margin: 10px 0 15px 0; }
-
-        /* Поля ввода с выравниванием по левому краю */
+        body { font-family: sans-serif; background-color: var(--tg-theme-bg-color, #181818); color: var(--tg-theme-text-color, #ffffff); padding: 15px; margin: 0; }
+        
+        /* Одинаковый стиль для всех полей */
         input, button { 
-            width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 12px; 
-            border: 1px solid #444; background-color: #1c1c1e;
-            color: #fff; font-size: 16px; display: block; outline: none;
-            text-align: left !important; /* Убираем центрирование */
+            width: 100%; 
+            padding: 14px; 
+            margin-bottom: 12px; 
+            border-radius: 10px; 
+            border: 1px solid var(--tg-theme-hint-color, #444); 
+            background-color: var(--tg-theme-secondary-bg-color, #333);
+            color: var(--tg-theme-text-color, #fff);
+            font-size: 16px; 
+            -webkit-appearance: none; /* Убирает баг iOS */
+            appearance: none;
+            display: block;
         }
-        input::placeholder { color: #8e8e93; }
-
-        /* Контейнер даты */
-        .date-box { position: relative; width: 100%; margin-bottom: 12px; }
-        .date-box input[type="date"] { color: transparent; min-height: 50px; }
-        .date-box input.has-val { color: #fff; }
-        .date-lbl { position: absolute; left: 15px; top: 15px; color: #8e8e93; pointer-events: none; }
-
-        /* Кнопки */
-        .btn-add { background-color: #4facfe; color: #fff; font-weight: 600; text-align: center !important; border: none; margin-top: 5px; }
         
-        /* Карточка задачи */
-        .card { background: #1c1c1e; padding: 16px; border-radius: 16px; margin-bottom: 15px; border: 1px solid #2c2c2e; }
-        .card-date { color: #ff453a; font-size: 14px; margin-top: 6px; display: block; }
-        
-        .row { display: flex; gap: 10px; margin-top: 15px; }
-        .btn-ai { background-color: #30d158; color: #fff; flex: 2; border: none; text-align: center !important; font-weight: bold; }
-        .btn-del { background-color: #ff3b30; flex: 1; border: none; text-align: center !important; }
+        input::placeholder { color: var(--tg-theme-hint-color, #aaa); }
 
-        /* Ответ ИИ */
-        .ai-out { 
-            display: none; background: #000; padding: 12px; border-radius: 10px; 
-            margin-top: 12px; border-left: 4px solid #30d158; font-size: 14px; line-height: 1.4; 
+        .date-wrapper { position: relative; width: 100%; margin-bottom: 12px; }
+        .date-wrapper input[type="date"] { margin-bottom: 0; color: transparent; min-height: 48px; }
+        .date-wrapper input[type="date"].has-value { color: var(--tg-theme-text-color, #fff); }
+        .date-placeholder { position: absolute; left: 15px; top: 14px; color: var(--tg-theme-hint-color, #aaa); pointer-events: none; }
+
+        button.save-btn { 
+            background-color: var(--tg-theme-button-color, #2481cc); 
+            color: var(--tg-theme-button-text-color, #ffffff); 
+            font-weight: bold; border: none; cursor: pointer;
         }
-        .ai-tag { color: #30d158; font-weight: bold; display: block; margin-top: 8px; font-size: 11px; text-transform: uppercase; }
+        
+        h2 { margin-top: 10px; font-size: 20px; color: var(--tg-theme-text-color, #fff); }
+        
+        .task-card { 
+            background-color: var(--tg-theme-secondary-bg-color, #2c2c2c); 
+            padding: 15px; 
+            border-radius: 10px; 
+            margin-bottom: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .task-info { flex-grow: 1; }
+        .task-date { color: #ff5e5e; font-size: 14px; display: block; margin-top: 4px; }
+        
+        .delete-btn { 
+            background-color: #ff4d4d; color: white; border: none; 
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; 
+            width: auto; margin: 0 0 0 10px; font-size: 14px;
+        }
     </style>
 </head>
 <body>
-
-    <h2>Новый дедлайн</h2>
-    <input type="text" id="subj" placeholder="Предмет (например, БД)">
-    <input type="text" id="topic" placeholder="Тема (например, Нормальные формы)">
+    <h2>Добавить дедлайн</h2>
     
-    <div class="date-box">
-        <input type="date" id="d-val" onchange="this.classList.toggle('has-val', !!this.value); document.getElementById('d-lbl').style.display = this.value ? 'none' : 'block';">
-        <div class="date-lbl" id="d-lbl">Дата</div>
+    <input type="text" id="subject-input" placeholder="Предмет">
+    <input type="text" id="task-name" placeholder="Название (например, Лаба №1)">
+    
+    <div class="date-wrapper">
+        <input type="date" id="task-date" onchange="dateChanged(this)">
+        <div class="date-placeholder" id="date-placeholder">Дата</div>
     </div>
 
-    <button class="btn-add" onclick="add()">Добавить в список</button>
+    <button class="save-btn" onclick="addTask()">Сохранить задачу</button>
 
     <h2>Мои задачи</h2>
-    <div id="list"></div>
+    <div id="tasks-list"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        let items = [];
 
-        // Загрузка данных из облака ТГ
-        tg.CloudStorage.getItem('amgu_data_v6', (err, val) => {
-            if(!err && val) { items = JSON.parse(val); show(); }
+        let tasks = [];
+
+        // Загрузка сохраненных задач из облака Telegram при старте
+        tg.CloudStorage.getItem('amgu_deadlines', (err, value) => {
+            if (!err && value) {
+                tasks = JSON.parse(value);
+                renderTasks();
+            }
         });
 
-        async function ask(id, s, t) {
-            const out = document.getElementById(`ai-${id}`);
-            out.style.display = 'block';
-            out.innerHTML = "<i>Запрос к ИИ...</i>";
-            tg.HapticFeedback.impactOccurred('light');
-
-            try {
-                // Используем обновленный стабильный адрес
-                const r = await fetch('https://text.pollinations.ai/', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        messages: [{role: 'user', content: `Кратко разбери тему "${t}" по предмету "${s}". Разделы: ТЕЗИСЫ, ТЕРМИНЫ, ВОПРОСЫ, ЛАЙФХАК.`}],
-                        model: 'openai'
-                    })
-                });
-                
-                const res = await r.text();
-                
-                if (res.includes('error') || res.length < 5) {
-                    out.innerHTML = "<span style='color:#ff453a'>У ИИ перегрузка. Попробуй через пару минут.</span>";
-                } else {
-                    out.innerHTML = res.replace(/(ТЕЗИСЫ|ТЕРМИНЫ|ВОПРОСЫ|ЛАЙФХАК):/g, '<span class="ai-tag">$1</span>');
-                }
-            } catch (e) { out.innerText = "Ошибка сети."; }
+        // Функция сохранения в облако
+        function saveToCloud() {
+            tg.CloudStorage.setItem('amgu_deadlines', JSON.stringify(tasks));
         }
 
-        function add() {
-            const s = document.getElementById('subj').value;
-            const t = document.getElementById('topic').value;
-            const d = document.getElementById('d-val').value;
-
-            if(!s || !t || !d) return tg.showAlert("Заполни все поля!");
-
-            items.push({
-                id: Date.now(), 
-                s, t, 
-                d: new Date(d).toLocaleDateString('ru-RU')
-            });
-
-            save();
-            show();
-            
-            tg.HapticFeedback.notificationOccurred('success');
-            document.getElementById('subj').value = '';
-            document.getElementById('topic').value = '';
-            document.getElementById('d-val').value = '';
+        function dateChanged(input) {
+            const placeholder = document.getElementById('date-placeholder');
+            if (input.value) {
+                input.classList.add('has-value');
+                placeholder.style.display = 'none';
+            } else {
+                input.classList.remove('has-value');
+                placeholder.style.display = 'block';
+            }
         }
 
-        function del(id) {
-            tg.showConfirm('Удалить?', (ok) => {
-                if(ok) { items = items.filter(i => i.id !== id); save(); show(); }
-            });
-        }
+        function addTask() {
+            const subject = document.getElementById('subject-input').value;
+            const name = document.getElementById('task-name').value;
+            const date = document.getElementById('task-date').value;
 
-        function save() {
-            tg.CloudStorage.setItem('amgu_data_v6', JSON.stringify(items));
-        }
-
-        function show() {
-            const container = document.getElementById('list');
-            if (items.length === 0) {
-                container.innerHTML = '<p style="color:#8e8e93; font-size:14px;">Пока задач нет</p>';
+            if (!subject || !name || !date) {
+                tg.showAlert("Пожалуйста, заполните все поля!");
                 return;
             }
-            container.innerHTML = items.map(i => `
-                <div class="card">
-                    <strong>${i.s}</strong>: ${i.t}
-                    <span class="card-date">До: ${i.d}</span>
-                    <div id="ai-${i.id}" class="ai-out"></div>
-                    <div class="row">
-                        <button class="btn-ai" onclick="ask(${i.id}, '${i.s}', '${i.t}')">📚 Подготовиться</button>
-                        <button class="btn-del" onclick="del(${i.id})">🗑</button>
+
+            const dateObj = new Date(date);
+            const formattedDate = dateObj.toLocaleDateString('ru-RU');
+
+            tasks.push({ id: Date.now(), subject, name, date: formattedDate });
+            saveToCloud();
+            
+            document.getElementById('subject-input').value = '';
+            document.getElementById('task-name').value = '';
+            document.getElementById('task-date').value = '';
+            dateChanged(document.getElementById('task-date'));
+
+            tg.HapticFeedback.notificationOccurred('success');
+            renderTasks();
+        }
+
+        function deleteTask(id) {
+            tg.showConfirm('Точно удалить этот дедлайн?', (confirmed) => {
+                if (confirmed) {
+                    tasks = tasks.filter(t => t.id !== id);
+                    saveToCloud();
+                    tg.HapticFeedback.impactOccurred('light');
+                    renderTasks();
+                }
+            });
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('tasks-list');
+            list.innerHTML = '';
+            tasks.forEach(task => {
+                list.innerHTML += `
+                    <div class="task-card">
+                        <div class="task-info">
+                            <strong>${task.subject}</strong><br>
+                            ${task.name}
+                            <span class="task-date">До: ${task.date}</span>
+                        </div>
+                        <button class="delete-btn" onclick="deleteTask(${task.id})">Удалить</button>
                     </div>
-                </div>
-            `).join('');
+                `;
+            });
         }
     </script>
 </body>
