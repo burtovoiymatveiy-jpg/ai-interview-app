@@ -6,9 +6,12 @@
     <title>Трекер АмГУ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        /* Глобальный сброс для ровных полей */
+        * { box-sizing: border-box; }
+        
         body { font-family: sans-serif; background-color: var(--tg-theme-bg-color, #181818); color: var(--tg-theme-text-color, #ffffff); padding: 15px; margin: 0; }
         
-        /* Одинаковый стиль для всех полей ввода */
+        /* Одинаковый стиль для всех полей */
         input, button { 
             width: 100%; 
             padding: 14px; 
@@ -18,14 +21,15 @@
             background-color: var(--tg-theme-secondary-bg-color, #333);
             color: var(--tg-theme-text-color, #fff);
             font-size: 16px; 
-            box-sizing: border-box;
+            -webkit-appearance: none; /* Убирает баг iOS */
+            appearance: none;
+            display: block;
         }
         
         input::placeholder { color: var(--tg-theme-hint-color, #aaa); }
 
-        /* Контейнер для поля даты, чтобы сделать плейсхолдер */
         .date-wrapper { position: relative; width: 100%; margin-bottom: 12px; }
-        .date-wrapper input[type="date"] { margin-bottom: 0; color: transparent; }
+        .date-wrapper input[type="date"] { margin-bottom: 0; color: transparent; min-height: 48px; }
         .date-wrapper input[type="date"].has-value { color: var(--tg-theme-text-color, #fff); }
         .date-placeholder { position: absolute; left: 15px; top: 14px; color: var(--tg-theme-hint-color, #aaa); pointer-events: none; }
 
@@ -37,7 +41,6 @@
         
         h2 { margin-top: 10px; font-size: 20px; color: var(--tg-theme-text-color, #fff); }
         
-        /* Карточка задачи */
         .task-card { 
             background-color: var(--tg-theme-secondary-bg-color, #2c2c2c); 
             padding: 15px; 
@@ -50,7 +53,6 @@
         .task-info { flex-grow: 1; }
         .task-date { color: #ff5e5e; font-size: 14px; display: block; margin-top: 4px; }
         
-        /* Кнопка удаления */
         .delete-btn { 
             background-color: #ff4d4d; color: white; border: none; 
             padding: 8px 12px; border-radius: 6px; cursor: pointer; 
@@ -80,7 +82,19 @@
 
         let tasks = [];
 
-        // Управление видимостью плейсхолдера даты
+        // Загрузка сохраненных задач из облака Telegram при старте
+        tg.CloudStorage.getItem('amgu_deadlines', (err, value) => {
+            if (!err && value) {
+                tasks = JSON.parse(value);
+                renderTasks();
+            }
+        });
+
+        // Функция сохранения в облако
+        function saveToCloud() {
+            tg.CloudStorage.setItem('amgu_deadlines', JSON.stringify(tasks));
+        }
+
         function dateChanged(input) {
             const placeholder = document.getElementById('date-placeholder');
             if (input.value) {
@@ -102,28 +116,26 @@
                 return;
             }
 
-            // Форматируем дату (ДД.ММ.ГГГГ)
             const dateObj = new Date(date);
             const formattedDate = dateObj.toLocaleDateString('ru-RU');
 
-            // Создаем задачу с уникальным ID
             tasks.push({ id: Date.now(), subject, name, date: formattedDate });
+            saveToCloud();
             
-            // Очищаем поля
             document.getElementById('subject-input').value = '';
             document.getElementById('task-name').value = '';
             document.getElementById('task-date').value = '';
-            dateChanged(document.getElementById('task-date')); // Сбрасываем текст "Дата"
+            dateChanged(document.getElementById('task-date'));
 
             tg.HapticFeedback.notificationOccurred('success');
             renderTasks();
         }
 
         function deleteTask(id) {
-            // Вызываем системное окно подтверждения Телеграма
             tg.showConfirm('Точно удалить этот дедлайн?', (confirmed) => {
                 if (confirmed) {
                     tasks = tasks.filter(t => t.id !== id);
+                    saveToCloud();
                     tg.HapticFeedback.impactOccurred('light');
                     renderTasks();
                 }
