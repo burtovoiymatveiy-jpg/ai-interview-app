@@ -3,18 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>АмГУ: Трекер долгов</title>
+    <title>АмГУ: Трекер v0.27</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg: var(--tg-theme-bg-color, #000000);
-            --sec-bg: var(--tg-theme-secondary-bg-color, #1c1c1d);
-            --text: var(--tg-theme-text-color, #ffffff);
-            --hint: var(--tg-theme-hint-color, #8e8e93);
-            --accent: var(--tg-theme-button-color, #007aff);
+            /* Темная тема (Default) */
+            --bg: #000000;
+            --sec-bg: #1c1c1d;
+            --text: #ffffff;
+            --hint: #8e8e93;
+            --accent: #007aff;
+            --card-bg: #1c1c1d;
             --danger: #ff3b30; 
             --warning: #ffcc00;
             --success: #34c759;
+            --panel-bg: #1c1c1d;
+            --input-bg: #2c2c2e;
+        }
+
+        [data-theme="light"] {
+            --bg: #f2f2f7;
+            --sec-bg: #ffffff;
+            --text: #000000;
+            --hint: #8e8e93;
+            --accent: #007aff;
+            --card-bg: #ffffff;
+            --panel-bg: #ffffff;
+            --input-bg: #f2f2f7;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -23,113 +38,84 @@
             font-family: -apple-system, system-ui, sans-serif; 
             background-color: var(--bg); color: var(--text); 
             padding: 20px 16px; display: flex; flex-direction: column;
-            min-height: 100vh;
+            min-height: 100vh; transition: background 0.3s, color 0.3s;
         }
 
-        /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
         .header h1 { font-size: 21px; font-weight: 800; letter-spacing: -0.5px; }
         
-        .status-pill {
-            background: var(--sec-bg); padding: 6px 12px; border-radius: 20px;
-            display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.05);
-        }
-        .status-count { font-size: 13px; font-weight: 700; }
+        .header-btns { display: flex; align-items: center; gap: 10px; }
         
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); position: relative; }
-        .pulse-on::after {
-            content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0;
-            background: inherit; border-radius: 50%;
-            animation: ripple 2s infinite ease-out;
-        }
-        @keyframes ripple {
-            0% { transform: scale(1); opacity: 0.8; }
-            100% { transform: scale(3.5); opacity: 0; }
+        .theme-toggle {
+            background: var(--sec-bg); border: 1px solid rgba(128,128,128,0.1); 
+            width: 40px; height: 40px; border-radius: 12px; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
         }
 
-        /* SEARCH - FIXED WIDTH */
+        .status-pill {
+            background: var(--sec-bg); padding: 6px 12px; border-radius: 20px;
+            display: flex; align-items: center; gap: 8px; border: 1px solid rgba(128,128,128,0.1);
+        }
+        .status-count { font-size: 13px; font-weight: 700; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); position: relative; }
+
         .search-box {
             background: var(--sec-bg); border-radius: 12px; padding: 12px;
             margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
-            width: 100%;
         }
-        .search-box input { 
-            background: transparent; border: none; color: var(--text); 
-            font-size: 16px; width: 100%; outline: none; padding: 0;
-        }
+        .search-box input { background: transparent; border: none; color: var(--text); font-size: 16px; width: 100%; outline: none; }
 
-        /* TABS */
         .tabs { display: flex; background: var(--sec-bg); padding: 2px; border-radius: 10px; margin-bottom: 20px; }
         .tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; color: var(--hint); }
-        .tab.active { background: #3a3a3c; color: #fff; }
+        .tab.active { background: var(--accent); color: #fff; }
 
-        /* LIST & CARDS */
-        #list { flex-grow: 1; }
-        .card {
-            background: var(--sec-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px;
-            border-left: 5px solid var(--success); animation: fadeIn 0.3s ease;
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
+        .card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 5px solid var(--success); }
         .card.critical { border-left-color: var(--danger); }
         .card.warning { border-left-color: var(--warning); }
-        .card.expired { border-left-color: #48484a; opacity: 0.6; }
+        .card.expired { border-left-color: var(--hint); opacity: 0.6; }
 
-        .card-subj { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .card-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
-        .card-desc { font-size: 14px; color: var(--hint); margin-bottom: 12px; }
-        .card-meta { font-size: 12px; color: var(--hint); display: flex; justify-content: space-between; font-weight: 500; }
+        .card-subj { font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
+        .card-name { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+        .card-meta { font-size: 12px; color: var(--hint); display: flex; justify-content: space-between; }
 
-        .card-actions { display: flex; gap: 8px; margin-top: 15px; }
-        .btn-s { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
-        .btn-edit { background: rgba(255,255,255,0.07); color: #fff; }
-        .btn-del { background: rgba(255,59,48,0.12); color: var(--danger); }
-
-        /* FOOTER VERSION - CENTERED */
-        .footer { padding: 40px 0 20px; text-align: center; margin-top: auto; width: 100%; }
-        .version-tag { font-size: 9px; color: var(--hint); opacity: 0.4; letter-spacing: 2px; font-weight: 700; text-transform: uppercase; }
-
-        /* FAB */
         .fab {
-            position: fixed; bottom: 45px; right: 20px; width: 60px; height: 60px;
-            background: var(--accent); border-radius: 50%; color: #fff; font-size: 32px;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 100;
+            position: fixed; bottom: 35px; right: 20px; 
+            width: 58px; height: 58px; background: var(--accent); border-radius: 50%; 
+            color: #fff; font-size: 30px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            display: grid; place-items: center; border: none; z-index: 100;
         }
 
-        /* MODAL PANEL - FIXED INPUTS */
         .panel {
-            position: fixed; bottom: -100%; left: 0; width: 100%; background: #1c1c1d;
+            position: fixed; bottom: -100%; left: 0; width: 100%; background: var(--panel-bg);
             border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 24px;
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.6); transition: 0.4s cubic-bezier(0.1, 0.8, 0.2, 1); z-index: 200;
+            transition: 0.4s cubic-bezier(0.1, 0.8, 0.2, 1); z-index: 200;
         }
         .panel.open { bottom: 0; }
-        
         .panel input, .panel textarea { 
-            width: 100%; display: block; background: #2c2c2e; border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 14px; padding: 14px 15px; color: #fff; font-size: 16px; margin-bottom: 12px; outline: none;
-            -webkit-appearance: none; /* Фикс для iOS */
+            width: 100%; background: var(--input-bg); border: 1px solid rgba(128,128,128,0.1);
+            border-radius: 14px; padding: 15px; color: var(--text); font-size: 16px; margin-bottom: 12px; outline: none;
         }
-        /* Фикс ширины и высоты даты */
-        .panel input[type="date"] { min-height: 52px; width: 100%; }
-        
-        .btn-save { background: var(--accent); color: #fff; width: 100%; padding: 16px; border-radius: 14px; border: none; font-weight: 700; font-size: 16px; margin-top: 10px; }
-        .empty { text-align: center; color: var(--hint); margin-top: 80px; font-style: italic; }
+
+        .footer { padding: 30px 0; text-align: center; margin-top: auto; }
+        .version-tag { font-size: 9px; color: var(--hint); opacity: 0.5; letter-spacing: 2px; font-weight: 700; }
     </style>
 </head>
-<body>
+<body data-theme="dark">
 
     <div class="header">
-        <h1>АмГУ: Трекер долгов</h1>
-        <div class="status-pill">
-            <span class="status-count" id="count-text">0 ДЗ</span>
-            <div class="status-dot" id="status-dot"></div>
+        <h1>АмГУ: Трекер</h1>
+        <div class="header-btns">
+            <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙</button>
+            <div class="status-pill">
+                <span class="status-count" id="count-text">0 ДЗ</span>
+                <div class="status-dot"></div>
+            </div>
         </div>
     </div>
 
     <div class="search-box">
-        <span style="font-size: 14px; opacity: 0.6;">🔍</span>
-        <input type="text" id="search" placeholder="Поиск задания..." oninput="render()">
+        <span>🔍</span>
+        <input type="text" id="search" placeholder="Поиск..." oninput="render()">
     </div>
 
     <div class="tabs">
@@ -140,46 +126,58 @@
     <div id="list"></div>
 
     <div class="footer">
-        <div class="version-tag">BETA v0.26</div>
+        <div class="version-tag">BETA v0.27</div>
     </div>
 
-    <div class="fab" onclick="togglePanel()">+</div>
+    <button class="fab" onclick="togglePanel()"><span>+</span></button>
 
     <div class="panel" id="panel">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-            <h2 id="p-title" style="font-size:20px;">Новое задание</h2>
-            <span onclick="togglePanel()" style="font-size:26px; color:var(--hint); cursor:pointer;">✕</span>
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <h2 id="p-title">Задание</h2>
+            <span onclick="togglePanel()" style="font-size:24px; cursor:pointer;">✕</span>
         </div>
-        <input type="text" id="subject" placeholder="📚 Предмет">
-        <input type="text" id="name" placeholder="📝 Описание задачи">
-        <textarea id="desc" placeholder="ℹ️ Дополнительно (детали)"></textarea>
-        <div style="margin-bottom:8px; font-size:12px; color:var(--hint); padding-left:4px;">Дедлайн:</div>
-        <input type="date" id="date" style="color-scheme: dark;">
-        <button class="btn-save" onclick="save()">Добавить в список</button>
+        <input type="text" id="subject" placeholder="Предмет">
+        <input type="text" id="name" placeholder="Что нужно сделать?">
+        <textarea id="desc" placeholder="Описание (необязательно)"></textarea>
+        <input type="date" id="date">
+        <button style="background:var(--accent); color:#fff; width:100%; padding:16px; border-radius:14px; border:none; font-weight:700;" onclick="save()">Сохранить</button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-
         let tasks = [];
-        let editId = null;
         let tab = 'active';
-        const DB_KEY = 'amgu_debt_v026'; 
+        let editId = null;
 
-        tg.CloudStorage.getItem(DB_KEY, (err, val) => {
-            if (!err && val) {
-                try { tasks = JSON.parse(val); } catch(e) { tasks = []; }
-            }
+        function initTheme() {
+            const saved = localStorage.getItem('user-theme');
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = saved || (systemDark ? 'dark' : 'light');
+            setTheme(theme);
+        }
+
+        function setTheme(t) {
+            document.body.setAttribute('data-theme', t);
+            document.getElementById('theme-btn').innerText = t === 'dark' ? '🌙' : '☀️';
+            localStorage.setItem('user-theme', t);
+        }
+
+        function toggleTheme() {
+            const current = document.body.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
+            tg.HapticFeedback.impactOccurred('medium');
+        }
+
+        tg.ready();
+        tg.CloudStorage.getItem('tasks_v27', (err, val) => {
+            if (!err && val) tasks = JSON.parse(val);
             render();
         });
 
         function togglePanel() {
             document.getElementById('panel').classList.toggle('open');
-            if (editId) {
+            if (!document.getElementById('panel').classList.contains('open')) {
                 editId = null;
-                document.getElementById('p-title').innerText = "Новое задание";
                 ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
             }
         }
@@ -192,112 +190,56 @@
         }
 
         function save() {
-            const s = document.getElementById('subject').value.trim();
-            const n = document.getElementById('name').value.trim();
-            const d = document.getElementById('desc').value.trim();
+            const s = document.getElementById('subject').value;
+            const n = document.getElementById('name').value;
             const r = document.getElementById('date').value;
+            if (!s || !n || !r) return;
 
-            if (!s || !n || !r) return tg.showAlert("Заполни все поля!");
-
+            const data = {id: editId || Date.now(), subject:s, name:n, dateRaw:r, desc: document.getElementById('desc').value};
+            
             if (editId) {
-                const i = tasks.findIndex(x => x.id === editId);
-                if (i !== -1) tasks[i] = { ...tasks[i], subject:s, name:n, desc:d, dateRaw:r };
+                const i = tasks.findIndex(t => t.id === editId);
+                tasks[i] = data;
             } else {
-                tasks.push({ id: Date.now(), subject:s, name:n, desc:d, dateRaw:r });
+                tasks.push(data);
             }
 
-            tg.CloudStorage.setItem(DB_KEY, JSON.stringify(tasks));
+            tg.CloudStorage.setItem('tasks_v27', JSON.stringify(tasks));
             togglePanel();
             render();
-            tg.HapticFeedback.notificationOccurred('success');
-            ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
-        }
-
-        function edit(id) {
-            const t = tasks.find(x => x.id === id);
-            if (!t) return;
-            editId = id;
-            document.getElementById('p-title').innerText = "Изменение";
-            document.getElementById('subject').value = t.subject;
-            document.getElementById('name').value = t.name;
-            document.getElementById('desc').value = t.desc;
-            document.getElementById('date').value = t.dateRaw;
-            document.getElementById('panel').classList.add('open');
-        }
-
-        function del(id) {
-            tg.showConfirm("Удалить это задание?", (ok) => {
-                if(ok) {
-                    tasks = tasks.filter(x => x.id !== id);
-                    tg.CloudStorage.setItem(DB_KEY, JSON.stringify(tasks));
-                    render();
-                }
-            });
         }
 
         function render() {
-            const container = document.getElementById('list');
+            const list = document.getElementById('list');
             const search = document.getElementById('search').value.toLowerCase();
-            const dot = document.getElementById('status-dot');
-            container.innerHTML = '';
-            
+            list.innerHTML = '';
             const now = new Date(); now.setHours(0,0,0,0);
-
-            let activeTasks = tasks.filter(t => {
-                if(!t.dateRaw) return false;
-                const d = new Date(t.dateRaw.split('-')[0], t.dateRaw.split('-')[1]-1, t.dateRaw.split('-')[2]);
-                return Math.ceil((d - now) / 86400000) >= 0;
+            
+            const filtered = tasks.filter(t => {
+                const d = new Date(t.dateRaw);
+                const diff = Math.ceil((d - now) / 86400000);
+                const match = t.name.toLowerCase().includes(search) || t.subject.toLowerCase().includes(search);
+                return match && (tab === 'active' ? diff >= 0 : diff < 0);
             });
 
-            document.getElementById('count-text').innerText = `${activeTasks.length} ДЗ`;
-            
-            if (activeTasks.length > 0) {
-                dot.classList.add('pulse-on');
-                let diffs = activeTasks.map(t => {
-                    const d = new Date(t.dateRaw.split('-')[0], t.dateRaw.split('-')[1]-1, t.dateRaw.split('-')[2]);
-                    return Math.ceil((d - now) / 86400000);
-                });
-                if (diffs.some(p => p <= 2)) dot.style.background = 'var(--danger)';
-                else if (diffs.some(p => p <= 5)) dot.style.background = 'var(--warning)';
-                else dot.style.background = 'var(--success)';
-            } else {
-                dot.classList.remove('pulse-on');
-                dot.style.background = 'var(--hint)';
-            }
-
-            const filtered = tasks.filter(t => {
-                if(!t.dateRaw) return false;
-                const d = new Date(t.dateRaw.split('-')[0], t.dateRaw.split('-')[1]-1, t.dateRaw.split('-')[2]);
-                const diff = Math.ceil((d - now) / 86400000);
-                const match = t.subject.toLowerCase().includes(search) || t.name.toLowerCase().includes(search);
-                return match && (tab === 'active' ? diff >= 0 : diff < 0);
-            }).sort((a,b) => new Date(a.dateRaw) - new Date(b.dateRaw));
-
-            if (filtered.length === 0) {
-                container.innerHTML = `<div class="empty">Пусто</div>`;
-                return;
-            }
-
             filtered.forEach(t => {
-                const d = new Date(t.dateRaw.split('-')[0], t.dateRaw.split('-')[1]-1, t.dateRaw.split('-')[2]);
+                const d = new Date(t.dateRaw);
                 const diff = Math.ceil((d - now) / 86400000);
                 const cls = diff < 0 ? 'expired' : (diff <= 2 ? 'critical' : (diff <= 5 ? 'warning' : ''));
-                
-                container.innerHTML += `
+                list.innerHTML += `
                     <div class="card ${cls}">
                         <div class="card-subj">${t.subject}</div>
                         <div class="card-name">${t.name}</div>
                         <div class="card-meta">
-                            <span>📅 ${d.toLocaleDateString('ru-RU')}</span>
-                            <span style="font-weight:700">${diff < 0 ? 'Просрочено' : 'Дней: ' + diff}</span>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn-s btn-edit" onclick="edit(${t.id})">Изменить</button>
-                            <button class="btn-s btn-del" onclick="del(${t.id})">Удалить</button>
+                            <span>📅 ${d.toLocaleDateString()}</span>
+                            <span>Дней: ${diff}</span>
                         </div>
                     </div>`;
             });
+            document.getElementById('count-text').innerText = `${tasks.length} ДЗ`;
         }
+
+        initTheme();
     </script>
 </body>
 </html>
