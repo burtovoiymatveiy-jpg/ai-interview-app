@@ -6,230 +6,213 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { box-sizing: border-box; }
-        
-        body { font-family: sans-serif; background-color: var(--tg-theme-bg-color, #181818); color: var(--tg-theme-text-color, #ffffff); padding: 15px; margin: 0; }
+        body { 
+            font-family: -apple-system, sans-serif; 
+            background-color: var(--tg-theme-bg-color, #181818); 
+            color: var(--tg-theme-text-color, #ffffff); 
+            padding: 15px; margin: 0; 
+        }
         
         input, textarea, button { 
-            width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 10px; 
+            width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 10px; 
             border: 1px solid var(--tg-theme-hint-color, #444); 
             background-color: var(--tg-theme-secondary-bg-color, #333);
             color: var(--tg-theme-text-color, #fff); font-size: 16px; 
-            -webkit-appearance: none; appearance: none; display: block; font-family: sans-serif;
+            outline: none;
         }
         
-        textarea { resize: none; height: 80px; }
-        input::placeholder, textarea::placeholder { color: var(--tg-theme-hint-color, #aaa); }
+        textarea { resize: none; height: 70px; font-family: inherit; }
 
-        .date-wrapper { position: relative; width: 100%; margin-bottom: 12px; }
-        .date-wrapper input[type="date"] { margin-bottom: 0; color: transparent; min-height: 48px; }
-        .date-wrapper input[type="date"].has-value { color: var(--tg-theme-text-color, #fff); }
-        .date-placeholder { position: absolute; left: 15px; top: 14px; color: var(--tg-theme-hint-color, #aaa); pointer-events: none; }
-
-        button.save-btn { 
-            background-color: var(--tg-theme-button-color, #2481cc); 
-            color: var(--tg-theme-button-text-color, #ffffff); 
-            font-weight: bold; border: none; cursor: pointer;
+        /* Вкладки */
+        .tabs { display: flex; gap: 8px; margin: 10px 0 20px 0; }
+        .tab-btn { 
+            flex: 1;
+            background: var(--tg-theme-secondary-bg-color, #333); 
+            border: 1px solid var(--tg-theme-hint-color, #444);
+            padding: 10px; cursor: pointer; font-size: 14px; transition: 0.2s;
         }
-        
-        h2 { margin-top: 10px; font-size: 20px; color: var(--tg-theme-text-color, #fff); }
-        
+        .tab-btn.active { 
+            background: var(--tg-theme-button-color, #2481cc); 
+            color: var(--tg-theme-button-text-color, #fff);
+            border-color: transparent; font-weight: bold;
+        }
+
         .task-card { 
             background-color: var(--tg-theme-secondary-bg-color, #2c2c2c); 
-            padding: 15px; border-radius: 10px; margin-bottom: 10px; 
+            padding: 15px; border-radius: 10px; margin-bottom: 12px; 
             display: flex; justify-content: space-between; align-items: flex-start; 
-            border-left: 5px solid transparent; 
+            border-left: 6px solid #4caf50; 
         }
-
         .task-card.critical { border-left-color: #ff4d4d; } 
         .task-card.warning { border-left-color: #ff9800; }  
-        .task-card.normal { border-left-color: #4caf50; }   
+        .task-card.expired { border-left-color: #777; opacity: 0.8; }
 
-        .task-info { flex-grow: 1; word-break: break-word; }
-        .task-date { color: var(--tg-theme-hint-color, #aaa); font-size: 14px; display: block; margin-top: 4px; }
-        .task-desc-text { font-size: 14px; color: #ccc; margin-top: 6px; }
+        .task-info { flex-grow: 1; padding-right: 10px; word-break: break-word; }
+        .task-date { color: var(--tg-theme-hint-color, #aaa); font-size: 12px; display: block; margin-top: 6px; }
+        .task-desc-val { font-size: 14px; color: #bbb; margin-top: 5px; line-height: 1.3; }
         
-        .actions { display: flex; flex-direction: column; gap: 8px; margin-left: 10px; }
-        .btn-small { 
-            color: white; border: none; padding: 8px 12px; 
-            border-radius: 6px; cursor: pointer; font-size: 13px; width: 80px; margin: 0;
-        }
-        .edit-btn { background-color: #f39c12; }
-        .delete-btn { background-color: #ff4d4d; }
+        .actions { display: flex; flex-direction: column; gap: 6px; width: 85px; flex-shrink: 0; }
+        .btn-s { padding: 8px; font-size: 12px; margin: 0; border: none; font-weight: bold; cursor: pointer; }
+        .edit-btn { background: #f39c12; color: white; }
+        .del-btn { background: #ff4d4d; color: white; }
+        .save-btn { background: var(--tg-theme-button-color, #2481cc); font-weight: bold; border: none; margin-top: 5px; }
     </style>
 </head>
 <body>
-    <h2 id="form-title">Добавить дедлайн</h2>
-    
-    <input type="text" id="subject-input" placeholder="Предмет">
-    <input type="text" id="task-name" placeholder="Название (например, Лаба №1)">
-    <textarea id="task-desc" placeholder="Дополнительная информация (по желанию)"></textarea>
-    
-    <div class="date-wrapper">
-        <input type="date" id="task-date" onchange="dateChanged(this)">
-        <div class="date-placeholder" id="date-placeholder">Дата</div>
+    <h2 id="f-title" style="margin-top:0;">Новый дедлайн</h2>
+    <input type="text" id="subject" placeholder="Предмет">
+    <input type="text" id="name" placeholder="Задание (напр. Лаба №2)">
+    <textarea id="desc" placeholder="Доп. информация..."></textarea>
+    <input type="date" id="date">
+    <button class="save-btn" onclick="saveTask()">Сохранить задачу</button>
+
+    <div class="tabs">
+        <button id="tab-active" class="tab-btn active" onclick="setTab('active')">Активные</button>
+        <button id="tab-expired" class="tab-btn" onclick="setTab('expired')">Просроченные</button>
     </div>
-
-    <button class="save-btn" id="save-btn" onclick="saveTask()">Сохранить задачу</button>
-
-    <h2>Мои задачи</h2>
-    <div id="tasks-list"></div>
+    
+    <div id="list"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-
         let tasks = [];
-        let editingTaskId = null;
+        let editingId = null;
+        let currentTab = 'active';
 
-        tg.CloudStorage.getItem('amgu_deadlines', (err, value) => {
-            if (!err && value) {
-                tasks = JSON.parse(value);
-                renderTasks();
+        // Ключ для CloudStorage (лучше менять при крупных обновлениях структуры)
+        const STORAGE_KEY = 'amgu_deadlines_final';
+
+        tg.CloudStorage.getItem(STORAGE_KEY, (err, val) => {
+            if (!err && val) { 
+                try {
+                    tasks = JSON.parse(val); 
+                } catch(e) { tasks = []; }
+                renderTasks(); 
             }
         });
 
-        function saveToCloud() {
-            tg.CloudStorage.setItem('amgu_deadlines', JSON.stringify(tasks));
-        }
+        function save() { tg.CloudStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
 
-        function dateChanged(input) {
-            const placeholder = document.getElementById('date-placeholder');
-            if (input.value) {
-                input.classList.add('has-value');
-                placeholder.style.display = 'none';
-            } else {
-                input.classList.remove('has-value');
-                placeholder.style.display = 'block';
-            }
-        }
-
-        function saveTask() {
-            const subject = document.getElementById('subject-input').value.trim();
-            const name = document.getElementById('task-name').value.trim();
-            const desc = document.getElementById('task-desc').value.trim();
-            const date = document.getElementById('task-date').value;
-
-            if (!subject || !name || !date) {
-                tg.showAlert("Заполните предмет, название и дату!");
-                return;
-            }
-
-            const dateObj = new Date(date);
-            const formattedDate = dateObj.toLocaleDateString('ru-RU');
-
-            if (editingTaskId) {
-                // Обновление существующей задачи
-                const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
-                if (taskIndex !== -1) {
-                    tasks[taskIndex] = { ...tasks[taskIndex], subject, name, desc, date: formattedDate, dateRaw: date };
-                }
-                editingTaskId = null;
-                document.getElementById('form-title').innerText = 'Добавить дедлайн';
-                document.getElementById('save-btn').innerText = 'Сохранить задачу';
-            } else {
-                // Создание новой задачи
-                tasks.push({ id: Date.now(), subject, name, desc, date: formattedDate, dateRaw: date });
-            }
-
-            saveToCloud();
-            clearForm();
-            tg.HapticFeedback.notificationOccurred('success');
+        function setTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-active').classList.toggle('active', tab === 'active');
+            document.getElementById('tab-expired').classList.toggle('active', tab === 'expired');
             renderTasks();
         }
 
-        function editTask(id) {
-            const task = tasks.find(t => t.id === id);
-            if (!task) return;
+        function saveTask() {
+            const s = document.getElementById('subject').value.trim();
+            const n = document.getElementById('name').value.trim();
+            const d = document.getElementById('desc').value.trim();
+            const raw = document.getElementById('date').value;
 
-            document.getElementById('subject-input').value = task.subject;
-            document.getElementById('task-name').value = task.name;
-            document.getElementById('task-desc').value = task.desc || '';
-            
-            // Восстановление даты
-            const dateInput = document.getElementById('task-date');
-            if (task.dateRaw) {
-                dateInput.value = task.dateRaw;
-            } else {
-                const parts = task.date.split('.');
-                dateInput.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            if (!s || !n || !raw) {
+                tg.showAlert("Заполните все поля (кроме описания)!");
+                return;
             }
-            dateChanged(dateInput);
 
-            editingTaskId = id;
-            document.getElementById('form-title').innerText = 'Редактировать дедлайн';
-            document.getElementById('save-btn').innerText = 'Обновить задачу';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+            if (editingId) {
+                const i = tasks.findIndex(t => t.id === editingId);
+                if(i !== -1) tasks[i] = { ...tasks[i], subject:s, name:n, desc:d, dateRaw:raw };
+                editingId = null;
+            } else {
+                tasks.push({ id: Date.now(), subject:s, name:n, desc:d, dateRaw:raw });
+            }
 
-        function deleteTask(id) {
-            tg.showConfirm('Точно удалить этот дедлайн?', (confirmed) => {
-                if (confirmed) {
-                    tasks = tasks.filter(t => t.id !== id);
-                    if (editingTaskId === id) clearForm(); // Сброс формы, если удалили редактируемое
-                    saveToCloud();
-                    tg.HapticFeedback.impactOccurred('light');
-                    renderTasks();
-                }
-            });
+            save();
+            clearForm();
+            renderTasks();
+            tg.HapticFeedback.notificationOccurred('success');
         }
 
         function clearForm() {
-            document.getElementById('subject-input').value = '';
-            document.getElementById('task-name').value = '';
-            document.getElementById('task-desc').value = '';
-            document.getElementById('task-date').value = '';
-            dateChanged(document.getElementById('task-date'));
-            editingTaskId = null;
-            document.getElementById('form-title').innerText = 'Добавить дедлайн';
-            document.getElementById('save-btn').innerText = 'Сохранить задачу';
+            ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('f-title').innerText = "Новый дедлайн";
+            editingId = null;
+        }
+
+        function editTask(id) {
+            const t = tasks.find(x => x.id === id);
+            if(!t) return;
+            document.getElementById('subject').value = t.subject;
+            document.getElementById('name').value = t.name;
+            document.getElementById('desc').value = t.desc;
+            document.getElementById('date').value = t.dateRaw;
+            editingId = id;
+            document.getElementById('f-title').innerText = "Редактирование";
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        function deleteTask(id) {
+            tg.showConfirm('Удалить эту задачу?', (confirmed) => {
+                if (confirmed) {
+                    tasks = tasks.filter(t => t.id !== id);
+                    if(editingId === id) clearForm();
+                    save(); 
+                    renderTasks();
+                    tg.HapticFeedback.impactOccurred('medium');
+                }
+            });
         }
 
         function renderTasks() {
-            const list = document.getElementById('tasks-list');
-            list.innerHTML = '';
+            const container = document.getElementById('list');
+            container.innerHTML = '';
             
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const now = new Date();
+            now.setHours(0,0,0,0);
 
-            // Сортировка: сначала ближайшие дедлайны
-            const sortedTasks = [...tasks].sort((a, b) => {
-                const dateA = a.dateRaw ? new Date(a.dateRaw) : new Date(a.date.split('.').reverse().join('-'));
-                const dateB = b.dateRaw ? new Date(b.dateRaw) : new Date(b.date.split('.').reverse().join('-'));
-                return dateA - dateB;
+            // 1. Очистка старых данных (просрочено более чем на 1 день)
+            const oldLength = tasks.length;
+            tasks = tasks.filter(t => {
+                const deadline = new Date(t.dateRaw);
+                const diff = Math.ceil((deadline - now) / 86400000);
+                return diff >= -1; 
             });
+            if (tasks.length !== oldLength) save();
 
-            sortedTasks.forEach(task => {
-                let taskDateObj;
-                if (task.dateRaw) {
-                    taskDateObj = new Date(task.dateRaw);
-                } else {
-                    const parts = task.date.split('.');
-                    taskDateObj = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            // 2. Фильтрация для текущей вкладки
+            const filtered = tasks.filter(t => {
+                const deadline = new Date(t.dateRaw);
+                const diff = Math.ceil((deadline - now) / 86400000);
+                return currentTab === 'active' ? diff >= 0 : diff < 0;
+            }).sort((a,b) => new Date(a.dateRaw) - new Date(b.dateRaw));
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div style="text-align:center; color:#777; margin-top:20px;">Список пуст</div>`;
+                return;
+            }
+
+            filtered.forEach(t => {
+                const deadline = new Date(t.dateRaw);
+                const diff = Math.ceil((deadline - now) / 86400000);
+                
+                let cls = '';
+                let statusText = `Дней осталось: ${diff}`;
+
+                if (diff < 0) {
+                    cls = 'expired';
+                    statusText = 'Срок истек (будет удалено завтра)';
+                } else if (diff <= 2) {
+                    cls = 'critical';
+                } else if (diff <= 5) {
+                    cls = 'warning';
                 }
 
-                const diffTime = taskDateObj - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                let statusClass = 'normal';
-                if (diffDays <= 2) statusClass = 'critical';
-                else if (diffDays <= 5) statusClass = 'warning';
-
-                const descHtml = task.desc ? `<div class="task-desc-text">${task.desc}</div>` : '';
-
-                list.innerHTML += `
-                    <div class="task-card ${statusClass}">
+                container.innerHTML += `
+                    <div class="task-card ${cls}">
                         <div class="task-info">
-                            <strong>${task.subject}</strong><br>
-                            ${task.name}
-                            ${descHtml}
-                            <span class="task-date">До: ${task.date} (дней: ${diffDays})</span>
+                            <strong style="color:var(--tg-theme-button-color, #2481cc);">${t.subject}</strong><br>
+                            <b>${t.name}</b>
+                            ${t.desc ? `<div class="task-desc-val">${t.desc}</div>` : ''}
+                            <span class="task-date">📅 До: ${deadline.toLocaleDateString('ru-RU')}<br>${statusText}</span>
                         </div>
                         <div class="actions">
-                            <button class="btn-small edit-btn" onclick="editTask(${task.id})">Изменить</button>
-                            <button class="btn-small delete-btn" onclick="deleteTask(${task.id})">Удалить</button>
+                            <button class="btn-s edit-btn" onclick="editTask(${t.id})">Правка</button>
+                            <button class="btn-s del-btn" onclick="deleteTask(${t.id})">Удалить</button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
         }
     </script>
