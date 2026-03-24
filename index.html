@@ -3,33 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>АмГУ: Трекер v0.27</title>
+    <title>АмГУ: Трекер v0.28</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            /* Темная тема (Default) */
-            --bg: #000000;
-            --sec-bg: #1c1c1d;
-            --text: #ffffff;
-            --hint: #8e8e93;
-            --accent: #007aff;
-            --card-bg: #1c1c1d;
-            --danger: #ff3b30; 
-            --warning: #ffcc00;
-            --success: #34c759;
-            --panel-bg: #1c1c1d;
-            --input-bg: #2c2c2e;
+            --bg: #000000; --sec-bg: #1c1c1d; --text: #ffffff; --hint: #8e8e93;
+            --accent: #007aff; --card-bg: #1c1c1d; --danger: #ff3b30; 
+            --warning: #ffcc00; --success: #34c759; --panel-bg: #1c1c1d; --input-bg: #2c2c2e;
         }
 
         [data-theme="light"] {
-            --bg: #f2f2f7;
-            --sec-bg: #ffffff;
-            --text: #000000;
-            --hint: #8e8e93;
-            --accent: #007aff;
-            --card-bg: #ffffff;
-            --panel-bg: #ffffff;
-            --input-bg: #f2f2f7;
+            --bg: #f2f2f7; --sec-bg: #ffffff; --text: #000000; --hint: #8e8e93;
+            --accent: #007aff; --card-bg: #ffffff; --panel-bg: #ffffff; --input-bg: #f2f2f7;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -38,11 +23,11 @@
             font-family: -apple-system, system-ui, sans-serif; 
             background-color: var(--bg); color: var(--text); 
             padding: 20px 16px; display: flex; flex-direction: column;
-            min-height: 100vh; transition: background 0.3s, color 0.3s;
+            min-height: 100vh; transition: background 0.3s;
         }
 
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .header h1 { font-size: 21px; font-weight: 800; letter-spacing: -0.5px; }
+        .header h1 { font-size: 21px; font-weight: 800; }
         
         .header-btns { display: flex; align-items: center; gap: 10px; }
         
@@ -57,7 +42,7 @@
             display: flex; align-items: center; gap: 8px; border: 1px solid rgba(128,128,128,0.1);
         }
         .status-count { font-size: 13px; font-weight: 700; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); position: relative; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); }
 
         .search-box {
             background: var(--sec-bg); border-radius: 12px; padding: 12px;
@@ -69,21 +54,21 @@
         .tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; color: var(--hint); }
         .tab.active { background: var(--accent); color: #fff; }
 
-        .card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 5px solid var(--success); }
-        .card.critical { border-left-color: var(--danger); }
-        .card.warning { border-left-color: var(--warning); }
-        .card.expired { border-left-color: var(--hint); opacity: 0.6; }
-
-        .card-subj { font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
-        .card-name { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-        .card-meta { font-size: 12px; color: var(--hint); display: flex; justify-content: space-between; }
-
+        /* ГЕОМЕТРИЧЕСКИЙ ПЛЮС ДЛЯ v0.28 */
         .fab {
             position: fixed; bottom: 35px; right: 20px; 
-            width: 58px; height: 58px; background: var(--accent); border-radius: 50%; 
-            color: #fff; font-size: 30px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-            display: grid; place-items: center; border: none; z-index: 100;
+            width: 56px; height: 56px; background: var(--accent); border-radius: 50%; 
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3); border: none; z-index: 100;
         }
+        .plus-icon {
+            position: absolute; top: 50%; left: 50%;
+            width: 18px; height: 18px; transform: translate(-50%, -50%);
+        }
+        .plus-icon::before, .plus-icon::after {
+            content: ''; position: absolute; background: #fff; border-radius: 2px;
+        }
+        .plus-icon::before { width: 100%; height: 3px; top: 7.5px; left: 0; }
+        .plus-icon::after { width: 3px; height: 100%; top: 0; left: 7.5px; }
 
         .panel {
             position: fixed; bottom: -100%; left: 0; width: 100%; background: var(--panel-bg);
@@ -93,8 +78,19 @@
         .panel.open { bottom: 0; }
         .panel input, .panel textarea { 
             width: 100%; background: var(--input-bg); border: 1px solid rgba(128,128,128,0.1);
-            border-radius: 14px; padding: 15px; color: var(--text); font-size: 16px; margin-bottom: 12px; outline: none;
+            border-radius: 14px; padding: 0 15px; color: var(--text); font-size: 16px; margin-bottom: 12px; outline: none;
+            height: 54px; -webkit-appearance: none;
         }
+        .panel textarea { padding: 15px; min-height: 80px; height: auto; }
+        .panel input[type="date"] { display: flex; align-items: center; color-scheme: dark; line-height: 54px; }
+        [data-theme="light"] .panel input[type="date"] { color-scheme: light; }
+
+        .btn-save { background: var(--accent); color: #fff; width: 100%; height: 54px; border-radius: 14px; border: none; font-weight: 700; font-size: 16px; margin-top: 5px; }
+        
+        .card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 5px solid var(--success); }
+        .card.critical { border-left-color: var(--danger); }
+        .card.warning { border-left-color: var(--warning); }
+        .card.expired { border-left-color: var(--hint); opacity: 0.6; }
 
         .footer { padding: 30px 0; text-align: center; margin-top: auto; }
         .version-tag { font-size: 9px; color: var(--hint); opacity: 0.5; letter-spacing: 2px; font-weight: 700; }
@@ -126,34 +122,34 @@
     <div id="list"></div>
 
     <div class="footer">
-        <div class="version-tag">BETA v0.27</div>
+        <div class="version-tag">BETA v0.28</div>
     </div>
 
-    <button class="fab" onclick="togglePanel()"><span>+</span></button>
+    <button class="fab" onclick="togglePanel()">
+        <div class="plus-icon"></div>
+    </button>
 
     <div class="panel" id="panel">
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-            <h2 id="p-title">Задание</h2>
-            <span onclick="togglePanel()" style="font-size:24px; cursor:pointer;">✕</span>
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px; align-items:center;">
+            <h2 id="p-title" style="font-size:20px;">Задание</h2>
+            <span onclick="togglePanel()" style="font-size:24px; cursor:pointer; color:var(--hint);">✕</span>
         </div>
-        <input type="text" id="subject" placeholder="Предмет">
-        <input type="text" id="name" placeholder="Что нужно сделать?">
-        <textarea id="desc" placeholder="Описание (необязательно)"></textarea>
+        <input type="text" id="subject" placeholder="📚 Предмет">
+        <input type="text" id="name" placeholder="📝 Что сделать?">
+        <textarea id="desc" placeholder="ℹ️ Детали (необязательно)"></textarea>
+        <div style="font-size:12px; color:var(--hint); margin-bottom:5px; padding-left:5px;">Дедлайн:</div>
         <input type="date" id="date">
-        <button style="background:var(--accent); color:#fff; width:100%; padding:16px; border-radius:14px; border:none; font-weight:700;" onclick="save()">Сохранить</button>
+        <button class="btn-save" onclick="save()">Сохранить</button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        let tasks = [];
-        let tab = 'active';
-        let editId = null;
+        let tasks = []; let tab = 'active';
 
         function initTheme() {
             const saved = localStorage.getItem('user-theme');
-            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const theme = saved || (systemDark ? 'dark' : 'light');
-            setTheme(theme);
+            const sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setTheme(saved || (sys ? 'dark' : 'light'));
         }
 
         function setTheme(t) {
@@ -163,23 +159,18 @@
         }
 
         function toggleTheme() {
-            const current = document.body.getAttribute('data-theme');
-            setTheme(current === 'dark' ? 'light' : 'dark');
+            setTheme(document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
             tg.HapticFeedback.impactOccurred('medium');
         }
 
-        tg.ready();
-        tg.CloudStorage.getItem('tasks_v27', (err, val) => {
+        tg.ready(); tg.expand();
+        tg.CloudStorage.getItem('tasks_v28', (err, val) => {
             if (!err && val) tasks = JSON.parse(val);
             render();
         });
 
         function togglePanel() {
             document.getElementById('panel').classList.toggle('open');
-            if (!document.getElementById('panel').classList.contains('open')) {
-                editId = null;
-                ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
-            }
         }
 
         function setTab(t) {
@@ -190,23 +181,16 @@
         }
 
         function save() {
-            const s = document.getElementById('subject').value;
-            const n = document.getElementById('name').value;
+            const s = document.getElementById('subject').value.trim();
+            const n = document.getElementById('name').value.trim();
             const r = document.getElementById('date').value;
             if (!s || !n || !r) return;
 
-            const data = {id: editId || Date.now(), subject:s, name:n, dateRaw:r, desc: document.getElementById('desc').value};
-            
-            if (editId) {
-                const i = tasks.findIndex(t => t.id === editId);
-                tasks[i] = data;
-            } else {
-                tasks.push(data);
-            }
-
-            tg.CloudStorage.setItem('tasks_v27', JSON.stringify(tasks));
-            togglePanel();
-            render();
+            tasks.push({id: Date.now(), subject:s, name:n, dateRaw:r, desc:document.getElementById('desc').value});
+            tg.CloudStorage.setItem('tasks_v28', JSON.stringify(tasks));
+            togglePanel(); render();
+            tg.HapticFeedback.notificationOccurred('success');
+            ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
         }
 
         function render() {
@@ -220,25 +204,24 @@
                 const diff = Math.ceil((d - now) / 86400000);
                 const match = t.name.toLowerCase().includes(search) || t.subject.toLowerCase().includes(search);
                 return match && (tab === 'active' ? diff >= 0 : diff < 0);
-            });
+            }).sort((a,b) => new Date(a.dateRaw) - new Date(b.dateRaw));
+
+            if (!filtered.length) list.innerHTML = '<div style="text-align:center;margin-top:40px;color:var(--hint);font-style:italic;">Пусто</div>';
 
             filtered.forEach(t => {
                 const d = new Date(t.dateRaw);
                 const diff = Math.ceil((d - now) / 86400000);
                 const cls = diff < 0 ? 'expired' : (diff <= 2 ? 'critical' : (diff <= 5 ? 'warning' : ''));
-                list.innerHTML += `
-                    <div class="card ${cls}">
-                        <div class="card-subj">${t.subject}</div>
-                        <div class="card-name">${t.name}</div>
-                        <div class="card-meta">
-                            <span>📅 ${d.toLocaleDateString()}</span>
-                            <span>Дней: ${diff}</span>
-                        </div>
-                    </div>`;
+                list.innerHTML += `<div class="card ${cls}">
+                    <div style="font-size:11px;font-weight:800;color:var(--accent);text-transform:uppercase;">${t.subject}</div>
+                    <div style="font-size:17px;font-weight:700;margin:4px 0 8px 0;">${t.name}</div>
+                    <div style="font-size:12px;color:var(--hint);display:flex;justify-content:space-between;">
+                        <span>📅 ${d.toLocaleDateString()}</span><span>Дней: ${diff}</span>
+                    </div>
+                </div>`;
             });
-            document.getElementById('count-text').innerText = `${tasks.length} ДЗ`;
+            document.getElementById('count-text').innerText = `${tasks.filter(t => (new Date(t.dateRaw) - now) >= 0).length} ДЗ`;
         }
-
         initTheme();
     </script>
 </body>
