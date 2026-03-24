@@ -5,20 +5,20 @@
     <title>Трекер АмГУ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Глобальный сброс для ровных полей */
         * { box-sizing: border-box; }
         
         body { font-family: sans-serif; background-color: var(--tg-theme-bg-color, #181818); color: var(--tg-theme-text-color, #ffffff); padding: 15px; margin: 0; }
         
-        input, button { 
+        input, textarea, button { 
             width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 10px; 
             border: 1px solid var(--tg-theme-hint-color, #444); 
             background-color: var(--tg-theme-secondary-bg-color, #333);
             color: var(--tg-theme-text-color, #fff); font-size: 16px; 
-            -webkit-appearance: none; appearance: none; display: block;
+            -webkit-appearance: none; appearance: none; display: block; font-family: sans-serif;
         }
         
-        input::placeholder { color: var(--tg-theme-hint-color, #aaa); }
+        textarea { resize: none; height: 80px; }
+        input::placeholder, textarea::placeholder { color: var(--tg-theme-hint-color, #aaa); }
 
         .date-wrapper { position: relative; width: 100%; margin-bottom: 12px; }
         .date-wrapper input[type="date"] { margin-bottom: 0; color: transparent; min-height: 48px; }
@@ -36,37 +36,40 @@
         .task-card { 
             background-color: var(--tg-theme-secondary-bg-color, #2c2c2c); 
             padding: 15px; border-radius: 10px; margin-bottom: 10px; 
-            display: flex; justify-content: space-between; align-items: center; 
-            border-left: 5px solid transparent; /* Место под цвет */
+            display: flex; justify-content: space-between; align-items: flex-start; 
+            border-left: 5px solid transparent; 
         }
 
-        /* Цвета дедлайнов */
-        .task-card.critical { border-left-color: #ff4d4d; } /* Меньше или равно 2 дням */
-        .task-card.warning { border-left-color: #ff9800; }  /* Меньше или равно 5 дням */
-        .task-card.normal { border-left-color: #4caf50; }   /* Больше 5 дней */
+        .task-card.critical { border-left-color: #ff4d4d; } 
+        .task-card.warning { border-left-color: #ff9800; }  
+        .task-card.normal { border-left-color: #4caf50; }   
 
-        .task-info { flex-grow: 1; }
+        .task-info { flex-grow: 1; word-break: break-word; }
         .task-date { color: var(--tg-theme-hint-color, #aaa); font-size: 14px; display: block; margin-top: 4px; }
+        .task-desc-text { font-size: 14px; color: #ccc; margin-top: 6px; }
         
-        .delete-btn { 
-            background-color: #ff4d4d; color: white; border: none; 
-            padding: 8px 12px; border-radius: 6px; cursor: pointer; 
-            width: auto; margin: 0 0 0 10px; font-size: 14px;
+        .actions { display: flex; flex-direction: column; gap: 8px; margin-left: 10px; }
+        .btn-small { 
+            color: white; border: none; padding: 8px 12px; 
+            border-radius: 6px; cursor: pointer; font-size: 13px; width: 80px; margin: 0;
         }
+        .edit-btn { background-color: #f39c12; }
+        .delete-btn { background-color: #ff4d4d; }
     </style>
 </head>
 <body>
-    <h2>Добавить дедлайн</h2>
+    <h2 id="form-title">Добавить дедлайн</h2>
     
     <input type="text" id="subject-input" placeholder="Предмет">
     <input type="text" id="task-name" placeholder="Название (например, Лаба №1)">
+    <textarea id="task-desc" placeholder="Дополнительная информация (по желанию)"></textarea>
     
     <div class="date-wrapper">
         <input type="date" id="task-date" onchange="dateChanged(this)">
         <div class="date-placeholder" id="date-placeholder">Дата</div>
     </div>
 
-    <button class="save-btn" onclick="addTask()">Сохранить задачу</button>
+    <button class="save-btn" id="save-btn" onclick="saveTask()">Сохранить задачу</button>
 
     <h2>Мои задачи</h2>
     <div id="tasks-list"></div>
@@ -76,6 +79,7 @@
         tg.expand();
 
         let tasks = [];
+        let editingTaskId = null;
 
         tg.CloudStorage.getItem('amgu_deadlines', (err, value) => {
             if (!err && value) {
@@ -99,41 +103,85 @@
             }
         }
 
-        function addTask() {
-            const subject = document.getElementById('subject-input').value;
-            const name = document.getElementById('task-name').value;
+        function saveTask() {
+            const subject = document.getElementById('subject-input').value.trim();
+            const name = document.getElementById('task-name').value.trim();
+            const desc = document.getElementById('task-desc').value.trim();
             const date = document.getElementById('task-date').value;
 
             if (!subject || !name || !date) {
-                tg.showAlert("Пожалуйста, заполните все поля!");
+                tg.showAlert("Заполните предмет, название и дату!");
                 return;
             }
 
             const dateObj = new Date(date);
             const formattedDate = dateObj.toLocaleDateString('ru-RU');
 
-            // Сохраняем и отформатированную дату, и системную (для точных расчетов)
-            tasks.push({ id: Date.now(), subject, name, date: formattedDate, dateRaw: date });
-            saveToCloud();
-            
-            document.getElementById('subject-input').value = '';
-            document.getElementById('task-name').value = '';
-            document.getElementById('task-date').value = '';
-            dateChanged(document.getElementById('task-date'));
+            if (editingTaskId) {
+                // Обновление существующей задачи
+                const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
+                if (taskIndex !== -1) {
+                    tasks[taskIndex] = { ...tasks[taskIndex], subject, name, desc, date: formattedDate, dateRaw: date };
+                }
+                editingTaskId = null;
+                document.getElementById('form-title').innerText = 'Добавить дедлайн';
+                document.getElementById('save-btn').innerText = 'Сохранить задачу';
+            } else {
+                // Создание новой задачи
+                tasks.push({ id: Date.now(), subject, name, desc, date: formattedDate, dateRaw: date });
+            }
 
+            saveToCloud();
+            clearForm();
             tg.HapticFeedback.notificationOccurred('success');
             renderTasks();
+        }
+
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            document.getElementById('subject-input').value = task.subject;
+            document.getElementById('task-name').value = task.name;
+            document.getElementById('task-desc').value = task.desc || '';
+            
+            // Восстановление даты
+            const dateInput = document.getElementById('task-date');
+            if (task.dateRaw) {
+                dateInput.value = task.dateRaw;
+            } else {
+                const parts = task.date.split('.');
+                dateInput.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            dateChanged(dateInput);
+
+            editingTaskId = id;
+            document.getElementById('form-title').innerText = 'Редактировать дедлайн';
+            document.getElementById('save-btn').innerText = 'Обновить задачу';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function deleteTask(id) {
             tg.showConfirm('Точно удалить этот дедлайн?', (confirmed) => {
                 if (confirmed) {
                     tasks = tasks.filter(t => t.id !== id);
+                    if (editingTaskId === id) clearForm(); // Сброс формы, если удалили редактируемое
                     saveToCloud();
                     tg.HapticFeedback.impactOccurred('light');
                     renderTasks();
                 }
             });
+        }
+
+        function clearForm() {
+            document.getElementById('subject-input').value = '';
+            document.getElementById('task-name').value = '';
+            document.getElementById('task-desc').value = '';
+            document.getElementById('task-date').value = '';
+            dateChanged(document.getElementById('task-date'));
+            editingTaskId = null;
+            document.getElementById('form-title').innerText = 'Добавить дедлайн';
+            document.getElementById('save-btn').innerText = 'Сохранить задачу';
         }
 
         function renderTasks() {
@@ -143,10 +191,15 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            tasks.forEach(task => {
+            // Сортировка: сначала ближайшие дедлайны
+            const sortedTasks = [...tasks].sort((a, b) => {
+                const dateA = a.dateRaw ? new Date(a.dateRaw) : new Date(a.date.split('.').reverse().join('-'));
+                const dateB = b.dateRaw ? new Date(b.dateRaw) : new Date(b.date.split('.').reverse().join('-'));
+                return dateA - dateB;
+            });
+
+            sortedTasks.forEach(task => {
                 let taskDateObj;
-                
-                // Проверка для поддержки старых задач (где не было dateRaw)
                 if (task.dateRaw) {
                     taskDateObj = new Date(task.dateRaw);
                 } else {
@@ -154,25 +207,27 @@
                     taskDateObj = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
                 }
 
-                // Расчет оставшихся дней
                 const diffTime = taskDateObj - today;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
                 let statusClass = 'normal';
-                if (diffDays <= 2) {
-                    statusClass = 'critical';
-                } else if (diffDays <= 5) {
-                    statusClass = 'warning';
-                }
+                if (diffDays <= 2) statusClass = 'critical';
+                else if (diffDays <= 5) statusClass = 'warning';
+
+                const descHtml = task.desc ? `<div class="task-desc-text">${task.desc}</div>` : '';
 
                 list.innerHTML += `
                     <div class="task-card ${statusClass}">
                         <div class="task-info">
                             <strong>${task.subject}</strong><br>
                             ${task.name}
+                            ${descHtml}
                             <span class="task-date">До: ${task.date} (дней: ${diffDays})</span>
                         </div>
-                        <button class="delete-btn" onclick="deleteTask(${task.id})">Удалить</button>
+                        <div class="actions">
+                            <button class="btn-small edit-btn" onclick="editTask(${task.id})">Изменить</button>
+                            <button class="btn-small delete-btn" onclick="deleteTask(${task.id})">Удалить</button>
+                        </div>
                     </div>
                 `;
             });
