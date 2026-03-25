@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>АмГУ: Трекер v0.29</title>
+    <title>АмГУ: Трекер v0.30</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -43,11 +43,22 @@
         }
         .status-count { font-size: 13px; font-weight: 700; }
         
-        /* ПУЛЬСИРУЮЩАЯ ТОЧКА В ХЕДЕРЕ */
+        /* ГЛОБАЛЬНАЯ ПУЛЬСИРУЮЩАЯ ТОЧКА */
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); transition: 0.3s; }
-        .dot-red { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: pulse-red 2s infinite; }
-        .dot-yellow { background: var(--warning); box-shadow: 0 0 8px var(--warning); animation: pulse-yellow 2s infinite; }
-        .dot-green { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .dot-red { background: var(--danger); box-shadow: 0 0 10px var(--danger); animation: pulse-header-red 1.5s infinite ease-in-out; }
+        .dot-yellow { background: var(--warning); box-shadow: 0 0 10px var(--warning); animation: pulse-header-yellow 1.5s infinite ease-in-out; }
+        .dot-green { background: var(--success); box-shadow: 0 0 5px var(--success); }
+
+        @keyframes pulse-header-red {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.8; }
+        }
+        @keyframes pulse-header-yellow {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.8; }
+        }
 
         .search-box {
             background: var(--sec-bg); border-radius: 12px; padding: 12px;
@@ -62,28 +73,27 @@
         .card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; position: relative; }
         .card-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; top: 18px; right: 16px; }
 
-        /* АНИМАЦИИ ПУЛЬСАЦИИ */
-        @keyframes pulse-red {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
-        }
-        @keyframes pulse-yellow {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 204, 0, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
-        }
-
-        .critical .card-dot { background: var(--danger); animation: pulse-red 2s infinite; }
-        .warning .card-dot { background: var(--warning); animation: pulse-yellow 2s infinite; }
+        /* ПУЛЬСАЦИЯ ВНУТРИ КАРТОЧКИ */
+        .critical .card-dot { background: var(--danger); animation: pulse-card 2s infinite; }
+        .warning .card-dot { background: var(--warning); animation: pulse-card-yellow 2s infinite; }
         .success .card-dot { background: var(--success); }
         .expired .card-dot { background: var(--hint); opacity: 0.5; }
+
+        @keyframes pulse-card {
+            0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+        }
+        @keyframes pulse-card-yellow {
+            0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(255, 204, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
+        }
 
         .card-subj { font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
         .card-name { font-size: 17px; font-weight: 700; margin-bottom: 8px; max-width: 85%; }
         .card-meta { font-size: 12px; color: var(--hint); display: flex; justify-content: space-between; }
 
-        /* ГЕОМЕТРИЧЕСКИЙ ПЛЮС */
         .fab {
             position: fixed; bottom: 35px; right: 20px; 
             width: 56px; height: 56px; background: var(--accent); border-radius: 50%; 
@@ -144,7 +154,7 @@
     <div id="list"></div>
 
     <div class="footer">
-        <div class="version-tag">BETA v0.29</div>
+        <div class="version-tag">BETA v0.30</div>
     </div>
 
     <button class="fab" onclick="togglePanel()">
@@ -153,7 +163,7 @@
 
     <div class="panel" id="panel">
         <div style="display:flex; justify-content:space-between; margin-bottom:20px; align-items:center;">
-            <h2 id="p-title" style="font-size:20px;">Задание</h2>
+            <h2 style="font-size:20px;">Задание</h2>
             <span onclick="togglePanel()" style="font-size:24px; cursor:pointer; color:var(--hint);">✕</span>
         </div>
         <input type="text" id="subject" placeholder="📚 Предмет">
@@ -186,17 +196,19 @@
         }
 
         tg.ready(); tg.expand();
-        tg.CloudStorage.getItem('tasks_v29', (err, val) => {
+        tg.CloudStorage.getItem('tasks_v30', (err, val) => {
             if (!err && val) tasks = JSON.parse(val);
             render();
         });
 
         function togglePanel() {
+            tg.HapticFeedback.impactOccurred('light');
             document.getElementById('panel').classList.toggle('open');
         }
 
         function setTab(t) {
             tab = t;
+            tg.HapticFeedback.impactOccurred('light');
             document.getElementById('t-act').classList.toggle('active', t === 'active');
             document.getElementById('t-exp').classList.toggle('active', t === 'expired');
             render();
@@ -209,7 +221,7 @@
             if (!s || !n || !r) return;
 
             tasks.push({id: Date.now(), subject:s, name:n, dateRaw:r, desc:document.getElementById('desc').value});
-            tg.CloudStorage.setItem('tasks_v29', JSON.stringify(tasks));
+            tg.CloudStorage.setItem('tasks_v30', JSON.stringify(tasks));
             togglePanel(); render();
             tg.HapticFeedback.notificationOccurred('success');
             ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
@@ -222,17 +234,15 @@
             
             const now = new Date(); now.setHours(0,0,0,0);
             
-            // 1. Сначала считаем общую срочность по всем задачам для хедера
             let globalUrgency = 0;
             tasks.forEach(t => {
                 const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
                 const diff = Math.round((d - now) / 86400000);
-                if (diff < 0 || diff <= 2) globalUrgency = Math.max(globalUrgency, 3); // Красный
-                else if (diff <= 5) globalUrgency = Math.max(globalUrgency, 2); // Желтый
-                else globalUrgency = Math.max(globalUrgency, 1); // Зеленый
+                if (diff < 0 || diff <= 2) globalUrgency = Math.max(globalUrgency, 3);
+                else if (diff <= 5) globalUrgency = Math.max(globalUrgency, 2);
+                else globalUrgency = Math.max(globalUrgency, 1);
             });
 
-            // 2. Рендерим отфильтрованный список
             const filtered = tasks.filter(t => {
                 const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
                 const diff = Math.round((d - now) / 86400000);
@@ -261,7 +271,6 @@
                 </div>`;
             });
 
-            // 3. Обновляем статусную точку в хедере
             const headDot = document.getElementById('header-dot');
             headDot.className = 'status-dot';
             if (globalUrgency === 3) headDot.classList.add('dot-red');
