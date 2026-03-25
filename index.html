@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>АмГУ: Трекер v0.30</title>
+    <title>АмГУ: Трекер v0.31</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -43,21 +43,19 @@
         }
         .status-count { font-size: 13px; font-weight: 700; }
         
-        /* ГЛОБАЛЬНАЯ ПУЛЬСИРУЮЩАЯ ТОЧКА */
+        /* ТОЧКА В ХЕДЕРЕ */
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); transition: 0.3s; }
-        .dot-red { background: var(--danger); box-shadow: 0 0 10px var(--danger); animation: pulse-header-red 1.5s infinite ease-in-out; }
-        .dot-yellow { background: var(--warning); box-shadow: 0 0 10px var(--warning); animation: pulse-header-yellow 1.5s infinite ease-in-out; }
+        .dot-red { background: var(--danger); box-shadow: 0 0 10px var(--danger); animation: pulse-h-red 1.5s infinite; }
+        .dot-yellow { background: var(--warning); box-shadow: 0 0 10px var(--warning); animation: pulse-h-yellow 1.5s infinite; }
         .dot-green { background: var(--success); box-shadow: 0 0 5px var(--success); }
 
-        @keyframes pulse-header-red {
-            0% { transform: scale(0.8); opacity: 0.8; }
+        @keyframes pulse-h-red {
+            0%, 100% { transform: scale(0.8); opacity: 0.7; }
             50% { transform: scale(1.3); opacity: 1; }
-            100% { transform: scale(0.8); opacity: 0.8; }
         }
-        @keyframes pulse-header-yellow {
-            0% { transform: scale(0.8); opacity: 0.8; }
+        @keyframes pulse-h-yellow {
+            0%, 100% { transform: scale(0.8); opacity: 0.7; }
             50% { transform: scale(1.3); opacity: 1; }
-            100% { transform: scale(0.8); opacity: 0.8; }
         }
 
         .search-box {
@@ -73,19 +71,19 @@
         .card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; position: relative; }
         .card-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; top: 18px; right: 16px; }
 
-        /* ПУЛЬСАЦИЯ ВНУТРИ КАРТОЧКИ */
-        .critical .card-dot { background: var(--danger); animation: pulse-card 2s infinite; }
-        .warning .card-dot { background: var(--warning); animation: pulse-card-yellow 2s infinite; }
+        /* ПУЛЬСАЦИЯ КАРТОЧЕК */
+        .critical .card-dot { background: var(--danger); animation: pulse-c-red 2s infinite; }
+        .warning .card-dot { background: var(--warning); animation: pulse-c-yellow 2s infinite; }
         .success .card-dot { background: var(--success); }
-        .expired .card-dot { background: var(--hint); opacity: 0.5; }
+        .expired .card-dot { background: var(--hint); opacity: 0.4; }
 
-        @keyframes pulse-card {
-            0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+        @keyframes pulse-c-red {
+            0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.6); }
             70% { box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
             100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
         }
-        @keyframes pulse-card-yellow {
-            0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.7); }
+        @keyframes pulse-c-yellow {
+            0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.6); }
             70% { box-shadow: 0 0 0 6px rgba(255, 204, 0, 0); }
             100% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
         }
@@ -154,7 +152,7 @@
     <div id="list"></div>
 
     <div class="footer">
-        <div class="version-tag">BETA v0.30</div>
+        <div class="version-tag">BETA v0.31</div>
     </div>
 
     <button class="fab" onclick="togglePanel()">
@@ -179,9 +177,8 @@
         let tasks = []; let tab = 'active';
 
         function initTheme() {
-            const saved = localStorage.getItem('user-theme');
-            const sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setTheme(saved || (sys ? 'dark' : 'light'));
+            const saved = localStorage.getItem('user-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            setTheme(saved);
         }
 
         function setTheme(t) {
@@ -191,12 +188,13 @@
         }
 
         function toggleTheme() {
-            setTheme(document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+            const current = document.body.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
             tg.HapticFeedback.impactOccurred('medium');
         }
 
         tg.ready(); tg.expand();
-        tg.CloudStorage.getItem('tasks_v30', (err, val) => {
+        tg.CloudStorage.getItem('tasks_v31', (err, val) => {
             if (!err && val) tasks = JSON.parse(val);
             render();
         });
@@ -221,7 +219,7 @@
             if (!s || !n || !r) return;
 
             tasks.push({id: Date.now(), subject:s, name:n, dateRaw:r, desc:document.getElementById('desc').value});
-            tg.CloudStorage.setItem('tasks_v30', JSON.stringify(tasks));
+            tg.CloudStorage.setItem('tasks_v31', JSON.stringify(tasks));
             togglePanel(); render();
             tg.HapticFeedback.notificationOccurred('success');
             ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
@@ -229,24 +227,26 @@
 
         function render() {
             const list = document.getElementById('list');
-            const search = document.getElementById('search').value.toLowerCase();
+            const searchInput = document.getElementById('search').value.toLowerCase();
             list.innerHTML = '';
             
             const now = new Date(); now.setHours(0,0,0,0);
             
-            let globalUrgency = 0;
+            // 1. Глобальная проверка статуса (по всем задачам)
+            let globalUrgency = 0; 
             tasks.forEach(t => {
                 const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
-                const diff = Math.round((d - now) / 86400000);
+                const diff = Math.floor((d.getTime() - now.getTime()) / 86400000);
                 if (diff < 0 || diff <= 2) globalUrgency = Math.max(globalUrgency, 3);
                 else if (diff <= 5) globalUrgency = Math.max(globalUrgency, 2);
                 else globalUrgency = Math.max(globalUrgency, 1);
             });
 
+            // 2. Рендер текущей вкладки
             const filtered = tasks.filter(t => {
                 const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
-                const diff = Math.round((d - now) / 86400000);
-                const match = t.name.toLowerCase().includes(search) || t.subject.toLowerCase().includes(search);
+                const diff = Math.floor((d.getTime() - now.getTime()) / 86400000);
+                const match = t.name.toLowerCase().includes(searchInput) || t.subject.toLowerCase().includes(searchInput);
                 return match && (tab === 'active' ? diff >= 0 : diff < 0);
             }).sort((a,b) => new Date(a.dateRaw) - new Date(b.dateRaw));
 
@@ -254,23 +254,24 @@
 
             filtered.forEach(t => {
                 const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
-                const diff = Math.round((d - now) / 86400000);
+                const diff = Math.floor((d.getTime() - now.getTime()) / 86400000);
                 
                 let cls = 'success';
                 if (diff < 0) cls = 'expired';
                 else if (diff <= 2) cls = 'critical';
                 else if (diff <= 5) cls = 'warning';
 
-                const dayText = diff === 0 ? 'Сегодня!' : (diff < 0 ? 'Просрочено' : `Дней: ${diff}`);
+                const dayLabel = diff === 0 ? 'Сегодня!' : (diff < 0 ? 'Просрочено' : `Дней: ${diff}`);
 
                 list.innerHTML += `<div class="card ${cls}">
                     <div class="card-dot"></div>
                     <div class="card-subj">${t.subject}</div>
                     <div class="card-name">${t.name}</div>
-                    <div class="card-meta"><span>📅 ${d.toLocaleDateString()}</span><span>${dayText}</span></div>
+                    <div class="card-meta"><span>📅 ${d.toLocaleDateString('ru-RU')}</span><span>${dayLabel}</span></div>
                 </div>`;
             });
 
+            // 3. Апдейт точки в хедере
             const headDot = document.getElementById('header-dot');
             headDot.className = 'status-dot';
             if (globalUrgency === 3) headDot.classList.add('dot-red');
