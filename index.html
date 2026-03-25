@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>АмГУ: Трекер v0.28</title>
+    <title>АмГУ: Трекер v0.29</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -42,7 +42,12 @@
             display: flex; align-items: center; gap: 8px; border: 1px solid rgba(128,128,128,0.1);
         }
         .status-count { font-size: 13px; font-weight: 700; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); }
+        
+        /* ПУЛЬСИРУЮЩАЯ ТОЧКА В ХЕДЕРЕ */
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); transition: 0.3s; }
+        .dot-red { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: pulse-red 2s infinite; }
+        .dot-yellow { background: var(--warning); box-shadow: 0 0 8px var(--warning); animation: pulse-yellow 2s infinite; }
+        .dot-green { background: var(--success); box-shadow: 0 0 8px var(--success); }
 
         .search-box {
             background: var(--sec-bg); border-radius: 12px; padding: 12px;
@@ -54,15 +59,38 @@
         .tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; color: var(--hint); }
         .tab.active { background: var(--accent); color: #fff; }
 
-        /* ГЕОМЕТРИЧЕСКИЙ ПЛЮС ДЛЯ v0.28 */
+        .card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; position: relative; }
+        .card-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; top: 18px; right: 16px; }
+
+        /* АНИМАЦИИ ПУЛЬСАЦИИ */
+        @keyframes pulse-red {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+        }
+        @keyframes pulse-yellow {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 204, 0, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
+        }
+
+        .critical .card-dot { background: var(--danger); animation: pulse-red 2s infinite; }
+        .warning .card-dot { background: var(--warning); animation: pulse-yellow 2s infinite; }
+        .success .card-dot { background: var(--success); }
+        .expired .card-dot { background: var(--hint); opacity: 0.5; }
+
+        .card-subj { font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
+        .card-name { font-size: 17px; font-weight: 700; margin-bottom: 8px; max-width: 85%; }
+        .card-meta { font-size: 12px; color: var(--hint); display: flex; justify-content: space-between; }
+
+        /* ГЕОМЕТРИЧЕСКИЙ ПЛЮС */
         .fab {
             position: fixed; bottom: 35px; right: 20px; 
             width: 56px; height: 56px; background: var(--accent); border-radius: 50%; 
             box-shadow: 0 4px 16px rgba(0,0,0,0.3); border: none; z-index: 100;
         }
         .plus-icon {
-            position: absolute; top: 50%; left: 50%;
-            width: 18px; height: 18px; transform: translate(-50%, -50%);
+            position: absolute; top: 50%; left: 50%; width: 18px; height: 18px; transform: translate(-50%, -50%);
         }
         .plus-icon::before, .plus-icon::after {
             content: ''; position: absolute; background: #fff; border-radius: 2px;
@@ -82,16 +110,10 @@
             height: 54px; -webkit-appearance: none;
         }
         .panel textarea { padding: 15px; min-height: 80px; height: auto; }
-        .panel input[type="date"] { display: flex; align-items: center; color-scheme: dark; line-height: 54px; }
-        [data-theme="light"] .panel input[type="date"] { color-scheme: light; }
+        .panel input[type="date"] { display: flex; align-items: center; color-scheme: dark; }
 
         .btn-save { background: var(--accent); color: #fff; width: 100%; height: 54px; border-radius: 14px; border: none; font-weight: 700; font-size: 16px; margin-top: 5px; }
         
-        .card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 5px solid var(--success); }
-        .card.critical { border-left-color: var(--danger); }
-        .card.warning { border-left-color: var(--warning); }
-        .card.expired { border-left-color: var(--hint); opacity: 0.6; }
-
         .footer { padding: 30px 0; text-align: center; margin-top: auto; }
         .version-tag { font-size: 9px; color: var(--hint); opacity: 0.5; letter-spacing: 2px; font-weight: 700; }
     </style>
@@ -104,7 +126,7 @@
             <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙</button>
             <div class="status-pill">
                 <span class="status-count" id="count-text">0 ДЗ</span>
-                <div class="status-dot"></div>
+                <div class="status-dot" id="header-dot"></div>
             </div>
         </div>
     </div>
@@ -122,7 +144,7 @@
     <div id="list"></div>
 
     <div class="footer">
-        <div class="version-tag">BETA v0.28</div>
+        <div class="version-tag">BETA v0.29</div>
     </div>
 
     <button class="fab" onclick="togglePanel()">
@@ -164,7 +186,7 @@
         }
 
         tg.ready(); tg.expand();
-        tg.CloudStorage.getItem('tasks_v28', (err, val) => {
+        tg.CloudStorage.getItem('tasks_v29', (err, val) => {
             if (!err && val) tasks = JSON.parse(val);
             render();
         });
@@ -187,7 +209,7 @@
             if (!s || !n || !r) return;
 
             tasks.push({id: Date.now(), subject:s, name:n, dateRaw:r, desc:document.getElementById('desc').value});
-            tg.CloudStorage.setItem('tasks_v28', JSON.stringify(tasks));
+            tg.CloudStorage.setItem('tasks_v29', JSON.stringify(tasks));
             togglePanel(); render();
             tg.HapticFeedback.notificationOccurred('success');
             ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
@@ -197,11 +219,23 @@
             const list = document.getElementById('list');
             const search = document.getElementById('search').value.toLowerCase();
             list.innerHTML = '';
+            
             const now = new Date(); now.setHours(0,0,0,0);
             
+            // 1. Сначала считаем общую срочность по всем задачам для хедера
+            let globalUrgency = 0;
+            tasks.forEach(t => {
+                const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
+                const diff = Math.round((d - now) / 86400000);
+                if (diff < 0 || diff <= 2) globalUrgency = Math.max(globalUrgency, 3); // Красный
+                else if (diff <= 5) globalUrgency = Math.max(globalUrgency, 2); // Желтый
+                else globalUrgency = Math.max(globalUrgency, 1); // Зеленый
+            });
+
+            // 2. Рендерим отфильтрованный список
             const filtered = tasks.filter(t => {
-                const d = new Date(t.dateRaw);
-                const diff = Math.ceil((d - now) / 86400000);
+                const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
+                const diff = Math.round((d - now) / 86400000);
                 const match = t.name.toLowerCase().includes(search) || t.subject.toLowerCase().includes(search);
                 return match && (tab === 'active' ? diff >= 0 : diff < 0);
             }).sort((a,b) => new Date(a.dateRaw) - new Date(b.dateRaw));
@@ -209,18 +243,33 @@
             if (!filtered.length) list.innerHTML = '<div style="text-align:center;margin-top:40px;color:var(--hint);font-style:italic;">Пусто</div>';
 
             filtered.forEach(t => {
-                const d = new Date(t.dateRaw);
-                const diff = Math.ceil((d - now) / 86400000);
-                const cls = diff < 0 ? 'expired' : (diff <= 2 ? 'critical' : (diff <= 5 ? 'warning' : ''));
+                const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
+                const diff = Math.round((d - now) / 86400000);
+                
+                let cls = 'success';
+                if (diff < 0) cls = 'expired';
+                else if (diff <= 2) cls = 'critical';
+                else if (diff <= 5) cls = 'warning';
+
+                const dayText = diff === 0 ? 'Сегодня!' : (diff < 0 ? 'Просрочено' : `Дней: ${diff}`);
+
                 list.innerHTML += `<div class="card ${cls}">
-                    <div style="font-size:11px;font-weight:800;color:var(--accent);text-transform:uppercase;">${t.subject}</div>
-                    <div style="font-size:17px;font-weight:700;margin:4px 0 8px 0;">${t.name}</div>
-                    <div style="font-size:12px;color:var(--hint);display:flex;justify-content:space-between;">
-                        <span>📅 ${d.toLocaleDateString()}</span><span>Дней: ${diff}</span>
-                    </div>
+                    <div class="card-dot"></div>
+                    <div class="card-subj">${t.subject}</div>
+                    <div class="card-name">${t.name}</div>
+                    <div class="card-meta"><span>📅 ${d.toLocaleDateString()}</span><span>${dayText}</span></div>
                 </div>`;
             });
-            document.getElementById('count-text').innerText = `${tasks.filter(t => (new Date(t.dateRaw) - now) >= 0).length} ДЗ`;
+
+            // 3. Обновляем статусную точку в хедере
+            const headDot = document.getElementById('header-dot');
+            headDot.className = 'status-dot';
+            if (globalUrgency === 3) headDot.classList.add('dot-red');
+            else if (globalUrgency === 2) headDot.classList.add('dot-yellow');
+            else if (globalUrgency === 1) headDot.classList.add('dot-green');
+
+            const activeCount = tasks.filter(t => (new Date(t.dateRaw).setHours(0,0,0,0) - now.getTime()) >= 0).length;
+            document.getElementById('count-text').innerText = `${activeCount} ДЗ`;
         }
         initTheme();
     </script>
