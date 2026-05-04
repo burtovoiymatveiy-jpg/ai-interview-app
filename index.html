@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>АмГУ: Трекер v0.31</title>
+    <title>АмГУ: Трекер v0.33</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -43,7 +43,6 @@
         }
         .status-count { font-size: 13px; font-weight: 700; }
         
-        /* ТОЧКА В ХЕДЕРЕ */
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hint); transition: 0.3s; }
         .dot-red { background: var(--danger); box-shadow: 0 0 10px var(--danger); animation: pulse-h-red 1.5s infinite; }
         .dot-yellow { background: var(--warning); box-shadow: 0 0 10px var(--warning); animation: pulse-h-yellow 1.5s infinite; }
@@ -71,7 +70,6 @@
         .card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; position: relative; }
         .card-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; top: 18px; right: 16px; }
 
-        /* ПУЛЬСАЦИЯ КАРТОЧЕК */
         .critical .card-dot { background: var(--danger); animation: pulse-c-red 2s infinite; }
         .warning .card-dot { background: var(--warning); animation: pulse-c-yellow 2s infinite; }
         .success .card-dot { background: var(--success); }
@@ -88,14 +86,19 @@
             100% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
         }
 
-        .card-subj { font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
+        .card-subj { font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; padding-right: 45px;}
         .card-name { font-size: 17px; font-weight: 700; margin-bottom: 8px; max-width: 85%; }
         .card-meta { font-size: 12px; color: var(--hint); display: flex; justify-content: space-between; }
+        
+        .btn-delete {
+            position: absolute; top: 12px; right: 35px; background: none; border: none; 
+            color: var(--danger); font-size: 18px; cursor: pointer; padding: 4px;
+        }
 
         .fab {
             position: fixed; bottom: 35px; right: 20px; 
             width: 56px; height: 56px; background: var(--accent); border-radius: 50%; 
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3); border: none; z-index: 100;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3); border: none; z-index: 100; cursor: pointer;
         }
         .plus-icon {
             position: absolute; top: 50%; left: 50%; width: 18px; height: 18px; transform: translate(-50%, -50%);
@@ -112,15 +115,15 @@
             transition: 0.4s cubic-bezier(0.1, 0.8, 0.2, 1); z-index: 200;
         }
         .panel.open { bottom: 0; }
-        .panel input, .panel textarea { 
+        .panel input, .panel textarea, .panel select { 
             width: 100%; background: var(--input-bg); border: 1px solid rgba(128,128,128,0.1);
             border-radius: 14px; padding: 0 15px; color: var(--text); font-size: 16px; margin-bottom: 12px; outline: none;
-            height: 54px; -webkit-appearance: none;
+            height: 54px; -webkit-appearance: none; font-family: inherit;
         }
         .panel textarea { padding: 15px; min-height: 80px; height: auto; }
         .panel input[type="date"] { display: flex; align-items: center; color-scheme: dark; }
 
-        .btn-save { background: var(--accent); color: #fff; width: 100%; height: 54px; border-radius: 14px; border: none; font-weight: 700; font-size: 16px; margin-top: 5px; }
+        .btn-save { background: var(--accent); color: #fff; width: 100%; height: 54px; border-radius: 14px; border: none; font-weight: 700; font-size: 16px; margin-top: 5px; cursor: pointer;}
         
         .footer { padding: 30px 0; text-align: center; margin-top: auto; }
         .version-tag { font-size: 9px; color: var(--hint); opacity: 0.5; letter-spacing: 2px; font-weight: 700; }
@@ -152,7 +155,7 @@
     <div id="list"></div>
 
     <div class="footer">
-        <div class="version-tag">BETA v0.31</div>
+        <div class="version-tag">BETA v0.33</div>
     </div>
 
     <button class="fab" onclick="togglePanel()">
@@ -166,6 +169,14 @@
         </div>
         <input type="text" id="subject" placeholder="📚 Предмет">
         <input type="text" id="name" placeholder="📝 Что сделать?">
+        
+        <select id="type">
+            <option value="Лабораторная" selected>Лабораторная</option>
+            <option value="Тест">Тест</option>
+            <option value="Реферат">Реферат</option>
+            <option value="Другое">Другое</option>
+        </select>
+
         <textarea id="desc" placeholder="ℹ️ Детали (необязательно)"></textarea>
         <div style="font-size:12px; color:var(--hint); margin-bottom:5px; padding-left:5px;">Дедлайн:</div>
         <input type="date" id="date">
@@ -176,6 +187,20 @@
         const tg = window.Telegram.WebApp;
         let tasks = []; let tab = 'active';
 
+        // Защита от XSS-уязвимостей
+        const escapeHTML = (str) => {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        };
+
         function initTheme() {
             const saved = localStorage.getItem('user-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             setTheme(saved);
@@ -185,6 +210,11 @@
             document.body.setAttribute('data-theme', t);
             document.getElementById('theme-btn').innerText = t === 'dark' ? '🌙' : '☀️';
             localStorage.setItem('user-theme', t);
+            if(t === 'light') {
+                document.querySelector('.panel input[type="date"]').style.colorScheme = 'light';
+            } else {
+                document.querySelector('.panel input[type="date"]').style.colorScheme = 'dark';
+            }
         }
 
         function toggleTheme() {
@@ -194,7 +224,7 @@
         }
 
         tg.ready(); tg.expand();
-        tg.CloudStorage.getItem('tasks_v31', (err, val) => {
+        tg.CloudStorage.getItem('tasks_v32', (err, val) => {
             if (!err && val) tasks = JSON.parse(val);
             render();
         });
@@ -216,13 +246,24 @@
             const s = document.getElementById('subject').value.trim();
             const n = document.getElementById('name').value.trim();
             const r = document.getElementById('date').value;
+            const t = document.getElementById('type').value;
+            
             if (!s || !n || !r) return;
 
-            tasks.push({id: Date.now(), subject:s, name:n, dateRaw:r, desc:document.getElementById('desc').value});
-            tg.CloudStorage.setItem('tasks_v31', JSON.stringify(tasks));
+            tasks.push({id: Date.now(), subject:s, name:n, type:t, dateRaw:r, desc:document.getElementById('desc').value});
+            tg.CloudStorage.setItem('tasks_v32', JSON.stringify(tasks));
             togglePanel(); render();
             tg.HapticFeedback.notificationOccurred('success');
+            
             ['subject','name','desc','date'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('type').value = 'Лабораторная';
+        }
+
+        function removeTask(id) {
+            tg.HapticFeedback.impactOccurred('heavy');
+            tasks = tasks.filter(t => t.id !== id);
+            tg.CloudStorage.setItem('tasks_v32', JSON.stringify(tasks));
+            render();
         }
 
         function render() {
@@ -232,29 +273,31 @@
             
             const now = new Date(); now.setHours(0,0,0,0);
             
-            // 1. Глобальная проверка статуса (по всем задачам)
             let globalUrgency = 0; 
             tasks.forEach(t => {
                 const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
-                const diff = Math.floor((d.getTime() - now.getTime()) / 86400000);
+                const diff = Math.round((d.getTime() - now.getTime()) / 86400000);
                 if (diff < 0 || diff <= 2) globalUrgency = Math.max(globalUrgency, 3);
                 else if (diff <= 5) globalUrgency = Math.max(globalUrgency, 2);
                 else globalUrgency = Math.max(globalUrgency, 1);
             });
 
-            // 2. Рендер текущей вкладки
             const filtered = tasks.filter(t => {
                 const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
-                const diff = Math.floor((d.getTime() - now.getTime()) / 86400000);
-                const match = t.name.toLowerCase().includes(searchInput) || t.subject.toLowerCase().includes(searchInput);
+                const diff = Math.round((d.getTime() - now.getTime()) / 86400000);
+                const match = t.name.toLowerCase().includes(searchInput) || 
+                              t.subject.toLowerCase().includes(searchInput) ||
+                              t.type.toLowerCase().includes(searchInput);
                 return match && (tab === 'active' ? diff >= 0 : diff < 0);
             }).sort((a,b) => new Date(a.dateRaw) - new Date(b.dateRaw));
 
-            if (!filtered.length) list.innerHTML = '<div style="text-align:center;margin-top:40px;color:var(--hint);font-style:italic;">Пусто</div>';
+            if (!filtered.length) {
+                list.innerHTML = '<div style="text-align:center;margin-top:40px;color:var(--hint);font-style:italic;">Пусто</div>';
+            }
 
             filtered.forEach(t => {
                 const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
-                const diff = Math.floor((d.getTime() - now.getTime()) / 86400000);
+                const diff = Math.round((d.getTime() - now.getTime()) / 86400000);
                 
                 let cls = 'success';
                 if (diff < 0) cls = 'expired';
@@ -264,23 +307,28 @@
                 const dayLabel = diff === 0 ? 'Сегодня!' : (diff < 0 ? 'Просрочено' : `Дней: ${diff}`);
 
                 list.innerHTML += `<div class="card ${cls}">
+                    <button class="btn-delete" onclick="removeTask(${t.id})">🗑</button>
                     <div class="card-dot"></div>
-                    <div class="card-subj">${t.subject}</div>
-                    <div class="card-name">${t.name}</div>
+                    <div class="card-subj">${escapeHTML(t.subject)} • ${escapeHTML(t.type)}</div>
+                    <div class="card-name">${escapeHTML(t.name)}</div>
                     <div class="card-meta"><span>📅 ${d.toLocaleDateString('ru-RU')}</span><span>${dayLabel}</span></div>
                 </div>`;
             });
 
-            // 3. Апдейт точки в хедере
             const headDot = document.getElementById('header-dot');
             headDot.className = 'status-dot';
             if (globalUrgency === 3) headDot.classList.add('dot-red');
             else if (globalUrgency === 2) headDot.classList.add('dot-yellow');
             else if (globalUrgency === 1) headDot.classList.add('dot-green');
 
-            const activeCount = tasks.filter(t => (new Date(t.dateRaw).setHours(0,0,0,0) - now.getTime()) >= 0).length;
+            const activeCount = tasks.filter(t => {
+                const d = new Date(t.dateRaw); d.setHours(0,0,0,0);
+                return Math.round((d.getTime() - now.getTime()) / 86400000) >= 0;
+            }).length;
+            
             document.getElementById('count-text').innerText = `${activeCount} ДЗ`;
         }
+        
         initTheme();
     </script>
 </body>
